@@ -1,16 +1,16 @@
 /*
  * Copyright (C) 2009-2013 The Project Lombok Authors.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,24 +20,6 @@
  * THE SOFTWARE.
  */
 package lombok.javac;
-
-import static lombok.javac.JavacTreeMaker.TreeTag.treeTag;
-import static lombok.javac.JavacTreeMaker.TypeTag.typeTag;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.lang.model.type.NoType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeVisitor;
-
-import lombok.javac.JavacTreeMaker.TreeTag;
-import lombok.javac.JavacTreeMaker.TypeTag;
 
 import com.sun.tools.javac.code.Source;
 import com.sun.tools.javac.code.Type;
@@ -50,6 +32,25 @@ import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
+import lombok.javac.JavacTreeMaker.TreeTag;
+import lombok.javac.JavacTreeMaker.TypeTag;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.NoType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeVisitor;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static lombok.javac.JavacTreeMaker.TreeTag.*;
+import static lombok.javac.JavacTreeMaker.TypeTag.*;
 
 /**
  * Container for static utility methods relevant to lombok's operation on javac.
@@ -58,22 +59,22 @@ public class Javac {
 	private Javac() {
 		// prevent instantiation
 	}
-	
+
 	/** Matches any of the 8 primitive names, such as {@code boolean}. */
 	private static final Pattern PRIMITIVE_TYPE_NAME_PATTERN = Pattern.compile("^(boolean|byte|short|int|long|float|double|char)$");
-	
+
 	private static final Pattern VERSION_PARSER = Pattern.compile("^(\\d{1,6})\\.(\\d{1,6}).*$");
 	private static final Pattern SOURCE_PARSER = Pattern.compile("^JDK(\\d{1,6})_(\\d{1,6}).*$");
-	
+
 	private static final AtomicInteger compilerVersion = new AtomicInteger(-1);
-	
+
 	/**
 	 * Returns the version of this java compiler, i.e. the JDK that it shipped in. For example, for javac v1.7, this returns {@code 7}.
 	 */
 	public static int getJavaCompilerVersion() {
 		int cv = compilerVersion.get();
 		if (cv != -1) return cv;
-		
+
 		/* Main algorithm: Use JavaCompiler's intended method to do this */ {
 			Matcher m = VERSION_PARSER.matcher(JavaCompiler.version());
 			if (m.matches()) {
@@ -85,7 +86,7 @@ public class Javac {
 				}
 			}
 		}
-		
+
 		/* Fallback algorithm one: Check Source's values. Lets hope oracle never releases a javac that recognizes future versions for -source */ {
 			String name = Source.values()[Source.values().length - 1].name();
 			Matcher m = SOURCE_PARSER.matcher(name);
@@ -98,13 +99,13 @@ public class Javac {
 				}
 			}
 		}
-		
+
 		compilerVersion.set(6);
 		return 6;
 	}
-	
+
 	private static final Class<?> DOCCOMMENTTABLE_CLASS;
-	
+
 	static {
 		Class<?> c = null;
 		try {
@@ -112,11 +113,11 @@ public class Javac {
 		} catch (Throwable ignore) {}
 		DOCCOMMENTTABLE_CLASS = c;
 	}
-	
+
 	public static boolean instanceOfDocCommentTable(Object o) {
 		return DOCCOMMENTTABLE_CLASS != null && DOCCOMMENTTABLE_CLASS.isInstance(o);
 	}
-	
+
 	/**
 	 * Checks if the given expression (that really ought to refer to a type
 	 * expression) represents a primitive type.
@@ -125,11 +126,11 @@ public class Javac {
 		String typeName = ref.toString();
 		return PRIMITIVE_TYPE_NAME_PATTERN.matcher(typeName).matches();
 	}
-	
+
 	/**
 	 * Turns an expression into a guessed intended literal. Only works for
 	 * literals, as you can imagine.
-	 * 
+	 *
 	 * Will for example turn a TrueLiteral into 'Boolean.valueOf(true)'.
 	 */
 	public static Object calculateGuess(JCExpression expr) {
@@ -150,7 +151,7 @@ public class Javac {
 		} else
 			return null;
 	}
-	
+
 	public static final TypeTag CTC_BOOLEAN = typeTag("BOOLEAN");
 	public static final TypeTag CTC_INT = typeTag("INT");
 	public static final TypeTag CTC_DOUBLE = typeTag("DOUBLE");
@@ -163,7 +164,7 @@ public class Javac {
 	public static final TypeTag CTC_NONE = typeTag("NONE");
 	public static final TypeTag CTC_BOT = typeTag("BOT");
 	public static final TypeTag CTC_CLASS = typeTag("CLASS");
-	
+
 	public static final TreeTag CTC_NOT_EQUAL = treeTag("NE");
 	public static final TreeTag CTC_POS = treeTag("POS");
 	public static final TreeTag CTC_NEG = treeTag("NEG");
@@ -176,13 +177,13 @@ public class Javac {
 	public static final TreeTag CTC_EQUAL = treeTag("EQ");
 	public static final TreeTag CTC_PREINC = treeTag("PREINC");
 	public static final TreeTag CTC_PREDEC = treeTag("PREDEC");
-	
+
 	private static final Method getExtendsClause, getEndPosition, storeEnd;
-	
+
 	static {
 		getExtendsClause = getMethod(JCClassDecl.class, "getExtendsClause", new Class<?>[0]);
 		getExtendsClause.setAccessible(true);
-		
+
 		if (getJavaCompilerVersion() < 8) {
 			getEndPosition = getMethod(DiagnosticPosition.class, "getEndPosition", java.util.Map.class);
 			storeEnd = getMethod(java.util.Map.class, "put", Object.class, Object.class);
@@ -212,7 +213,7 @@ public class Javac {
 		getEndPosition.setAccessible(true);
 		storeEnd.setAccessible(true);
 	}
-	
+
 	private static Method getMethod(Class<?> clazz, String name, Class<?>... paramTypes) {
 		try {
 			return clazz.getMethod(name, paramTypes);
@@ -220,7 +221,7 @@ public class Javac {
 			throw sneakyThrow(e);
 		}
 	}
-	
+
 	private static Method getMethod(Class<?> clazz, String name, String... paramTypes) {
 		try {
 			Class<?>[] c = new Class[paramTypes.length];
@@ -232,7 +233,7 @@ public class Javac {
 			throw sneakyThrow(e);
 		}
 	}
-	
+
 	public static JCTree getExtendsClause(JCClassDecl decl) {
 		try {
 			return (JCTree) getExtendsClause.invoke(decl);
@@ -242,7 +243,7 @@ public class Javac {
 			throw sneakyThrow(e.getCause());
 		}
 	}
-	
+
 	public static Object getDocComments(JCCompilationUnit cu) {
 		try {
 			return JCCOMPILATIONUNIT_DOCCOMMENTS.get(cu);
@@ -250,7 +251,7 @@ public class Javac {
 			throw sneakyThrow(e);
 		}
 	}
-	
+
 	public static void initDocComments(JCCompilationUnit cu) {
 		try {
 			JCCOMPILATIONUNIT_DOCCOMMENTS.set(cu, new HashMap<Object, String>());
@@ -260,7 +261,7 @@ public class Javac {
 			throw sneakyThrow(e);
 		}
 	}
-	
+
 	public static int getEndPosition(DiagnosticPosition pos, JCCompilationUnit top) {
 		try {
 			Object endPositions = JCCOMPILATIONUNIT_ENDPOSITIONS.get(top);
@@ -271,7 +272,7 @@ public class Javac {
 			throw sneakyThrow(e.getCause());
 		}
 	}
-	
+
 	public static void storeEnd(JCTree tree, int pos, JCCompilationUnit top) {
 		try {
 			Object endPositions = JCCOMPILATIONUNIT_ENDPOSITIONS.get(top);
@@ -284,7 +285,7 @@ public class Javac {
 	}
 
 	private static final Class<?> JC_VOID_TYPE, JC_NO_TYPE;
-	
+
 	static {
 		Class<?> c = null;
 		try {
@@ -297,7 +298,7 @@ public class Javac {
 		} catch (Throwable ignore) {}
 		JC_NO_TYPE = c;
 	}
-	
+
 	public static Type createVoidType(JavacTreeMaker maker, TypeTag tag) {
 		if (Javac.getJavaCompilerVersion() < 8) {
 			return new JCNoType(((Integer) tag.value).intValue());
@@ -315,25 +316,40 @@ public class Javac {
 			}
 		}
 	}
-	
+
 	private static class JCNoType extends Type implements NoType {
 		public JCNoType(int tag) {
 			super(tag, null);
 		}
-		
+
 		@Override
 		public TypeKind getKind() {
 			if (tag == ((Integer) CTC_VOID.value).intValue()) return TypeKind.VOID;
 			if (tag == ((Integer) CTC_NONE.value).intValue()) return TypeKind.NONE;
 			throw new AssertionError("Unexpected tag: " + tag);
 		}
-		
+
 		@Override
 		public <R, P> R accept(TypeVisitor<R, P> v, P p) {
 			return v.visitNoType(this, p);
 		}
+
+		@Override
+		public List<? extends AnnotationMirror> getAnnotationMirrors() {
+			return null;
+		}
+
+		@Override
+		public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
+			return null;
+		}
+
+		@Override
+		public <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationType) {
+			return null;
+		}
 	}
-	
+
 	private static final Field JCCOMPILATIONUNIT_ENDPOSITIONS, JCCOMPILATIONUNIT_DOCCOMMENTS;
 	static {
 		Field f = null;
@@ -341,20 +357,20 @@ public class Javac {
 			f = JCCompilationUnit.class.getDeclaredField("endPositions");
 		} catch (NoSuchFieldException e) {}
 		JCCOMPILATIONUNIT_ENDPOSITIONS = f;
-		
+
 		f = null;
 		try {
 			f = JCCompilationUnit.class.getDeclaredField("docComments");
 		} catch (NoSuchFieldException e) {}
 		JCCOMPILATIONUNIT_DOCCOMMENTS = f;
 	}
-	
+
 	static RuntimeException sneakyThrow(Throwable t) {
 		if (t == null) throw new NullPointerException("t");
 		Javac.<RuntimeException>sneakyThrow0(t);
 		return null;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private static <T extends Throwable> void sneakyThrow0(Throwable t) throws T {
 		throw (T)t;
