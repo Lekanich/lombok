@@ -44,5 +44,29 @@
 			<timezone>+1</timezone>
 		</developer>
 	</developers>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-install-plugin</artifactId>
+				<version>2.3.1</version>
+				<executions>
+					<execution>
+						<id>install-artifacts.1</id>
+						<goals>
+							<goal>install-file</goal>
+						</goals>
+						<phase>initialize</phase>
+						<configuration>
+							<pomFile>pom.xml</pomFile>
+							<file>target/lombok-@VERSION@.jar</file>
+							<sources>target/lombok-@VERSION@-sources.jar</sources>
+							<javadoc>target/lombok-@VERSION@-javadoc.jar</javadoc>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
 
