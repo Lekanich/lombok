@@ -47,25 +47,43 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-install-plugin</artifactId>
-				<version>2.3.1</version>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.2.1</version>
+				<inherited>false</inherited>
 				<executions>
 					<execution>
-						<id>install-artifacts.1</id>
+						<id>hack</id>
+						<phase>install</phase>
 						<goals>
-							<goal>install-file</goal>
+							<goal>exec</goal>
 						</goals>
-						<phase>initialize</phase>
 						<configuration>
-							<pomFile>pom.xml</pomFile>
-							<file>target/lombok-@VERSION@.jar</file>
-							<sources>target/lombok-@VERSION@-sources.jar</sources>
-							<javadoc>target/lombok-@VERSION@-javadoc.jar</javadoc>
+							<executable>doc/hack.sh</executable>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
+			<!--<plugin>-->
+				<!--<groupId>org.apache.maven.plugins</groupId>-->
+				<!--<artifactId>maven-install-plugin</artifactId>-->
+				<!--<version>2.3.1</version>-->
+				<!--<executions>-->
+					<!--<execution>-->
+						<!--<id>install-artifacts.1</id>-->
+						<!--<goals>-->
+							<!--<goal>install-file</goal>-->
+						<!--</goals>-->
+						<!--<phase>initialize</phase>-->
+						<!--<configuration>-->
+							<!--<pomFile>pom.xml</pomFile>-->
+							<!--<file>target/lombok-@VERSION@.jar</file>-->
+							<!--<sources>target/lombok-@VERSION@-sources.jar</sources>-->
+							<!--<javadoc>target/lombok-@VERSION@-javadoc.jar</javadoc>-->
+						<!--</configuration>-->
+					<!--</execution>-->
+				<!--</executions>-->
+			<!--</plugin>-->
 		</plugins>
 	</build>
 </project>
