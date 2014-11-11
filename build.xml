@@ -60,6 +60,7 @@ the common tasks and can be called on to run the main aspects of all the sub-scr
 
 	<target name="clean" description="Removes all generated files.">
 		<delete dir="build" quiet="true" />
+		<delete dir="target" quiet="true" />
 	</target>
 
 	<target name="distclean" depends="clean" description="Deletes everything that this build script has ever generated.">
