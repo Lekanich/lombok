@@ -647,6 +647,8 @@ You can also create your own by writing a 'testenvironment.properties' file. The
 			</filterchain>
 		</copy>
 		<copy tofile="target/lombok-${lombok.version}.jar" overwrite="true" file="dist/lombok.jar"/>
+		<copy tofile="target/lombok-${lombok.version}-sources.jar" overwrite="true" file="dist/lombok-${lombok.version}-sources.jar"/>
+		<copy tofile="target/lombok-${lombok.version}-javadoc.jar" overwrite="true" file="dist/lombok-${lombok.version}-javadoc.jar.jar"/>
 		<mkdir dir="target/maven-archiver"/>
 		<copy tofile="target/maven-archiver/pom.properties" overwrite="true" file="doc/pom.properties">
 			<filterchain>
