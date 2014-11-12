@@ -334,17 +334,17 @@ public class Javac {
 			return v.visitNoType(this, p);
 		}
 
-		@Override
+//		@Override
 		public List<? extends AnnotationMirror> getAnnotationMirrors() {
 			return null;
 		}
 
-		@Override
+//		@Override
 		public <A extends Annotation> A getAnnotation(Class<A> annotationType) {
 			return null;
 		}
 
-		@Override
+//		@Override
 		public <A extends Annotation> A[] getAnnotationsByType(Class<A> annotationType) {
 			return null;
 		}
