@@ -1,5 +1,5 @@
-class FieldDefaults1 {
-	FieldDefaults1(final java.lang.String cons, long zz) {
+class FinalT {
+	FinalT(final java.lang.String cons, long zz) {
 		final int yCons = 4;
 	}
 

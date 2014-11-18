@@ -1,6 +1,6 @@
-class FieldDefaults1 {
+class FinalT {
 	@lombok.experimental.Final
-	FieldDefaults1(java.lang.String cons, @lombok.experimental.NonFinal long zz) {
+	FinalT(java.lang.String cons, @lombok.experimental.NonFinal long zz) {
 		int yCons = 4;
 	}
 
