@@ -68,7 +68,7 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-sources</artifactId>
+				<artifactId>maven-source-plugin</artifactId>
 				<executions>
 					<execution>
 						<id>attach-source</id>
