@@ -120,7 +120,7 @@ public class DirectoryRunner extends Runner {
 		}
 
 		for (Map.Entry<String, Description> entry : tests.entrySet()) {
-//			if (!entry.getKey().contains("Final")) continue;		// todo SS spike for direct test
+//			if (!entry.getKey().contains("NonNullArgs")) continue;		// todo SS spike for direct test
 			Description testDescription = entry.getValue();
 			notifier.fireTestStarted(testDescription);
 			try {
