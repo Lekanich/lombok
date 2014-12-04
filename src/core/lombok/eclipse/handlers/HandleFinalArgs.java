@@ -24,6 +24,6 @@ public class HandleFinalArgs extends EclipseAnnotationHandler<FinalArgs> {
 	public void handle(AnnotationValues<FinalArgs> annotation, Annotation ast, EclipseNode annotationNode) {
 		EclipseNode node = annotationNode.up();
 
-		handleFinal(node, AST.Kind.ARGUMENT);
+		handleFinal(node, false, AST.Kind.ARGUMENT);
 	}
 }

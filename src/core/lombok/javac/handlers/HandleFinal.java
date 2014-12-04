@@ -27,15 +27,14 @@ public class HandleFinal extends JavacAnnotationHandler<Final> {
 		deleteAnnotationIfNeccessary(annotationNode, Final.class);
 		JavacNode node = annotationNode.up();
 
-		handleFinal(node, AST.Kind.LOCAL, AST.Kind.ARGUMENT);
+		handleFinal(node, true, AST.Kind.LOCAL, AST.Kind.ARGUMENT);
 	}
 
-	public static void handleFinal(JavacNode node, AST.Kind... validKinds) {
-		if (!(node.get() instanceof JCTree.JCMethodDecl)) return;
-
+	public static void handleFinal(JavacNode node, boolean checkDeep, AST.Kind... validKinds) {
 		for (JavacNode child : node.down()) {
 			for (AST.Kind kind : validKinds) {
-				if (child.getKind() != kind) continue;
+				if (checkDeep && child.getKind() == AST.Kind.STATEMENT) handleFinal(child, true, validKinds);
+				if (child.getKind() != kind || node.get() instanceof JCTree.JCForLoop) continue;			// skip variable init in 'for'
 
 				JCTree.JCVariableDecl localDecl = (JCTree.JCVariableDecl) child.get();
 				if (!hasAnnotationAndDeleteIfNeccessary(NonFinal.class, child)) {

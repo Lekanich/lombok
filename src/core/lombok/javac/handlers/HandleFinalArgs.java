@@ -25,6 +25,6 @@ public class HandleFinalArgs extends JavacAnnotationHandler<FinalArgs> {
 	public void handle(AnnotationValues<FinalArgs> annotation, JCTree.JCAnnotation ast, JavacNode annotationNode) {
 		deleteAnnotationIfNeccessary(annotationNode, FinalArgs.class);
 
-		handleFinal(annotationNode.up(), AST.Kind.ARGUMENT);
+		handleFinal(annotationNode.up(), false, AST.Kind.ARGUMENT);
 	}
 }
