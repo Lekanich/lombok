@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Adds modifier to each local variable or parameter in method with this annotation.
+ * Adds modifier to each local variable or parameter in method with this annotation (exclude for-variable-declaration).
  * Works with lombok.experimental.NonFinal		for mark non final
  * Equivalent to {@code FinalArgs} with additional for local variables
  *
