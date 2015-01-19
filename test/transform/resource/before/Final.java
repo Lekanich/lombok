@@ -12,6 +12,10 @@ class FinalT {
 		for (int i = 0; i < 10; i++) {
 			System.out.println(i);
 		}
+		int[] array = {3,4,5,6,7};
+		for (int i : array) {
+			System.out.println(i);
+		}
 
 		{
 			int some = 0;
@@ -21,6 +25,12 @@ class FinalT {
 					int k = 0;
 				}
 			}
+		}
+
+		try {
+			System.out.print('c');
+		} catch (Throwable some) {
+			some = null;
 		}
 	}
 }
