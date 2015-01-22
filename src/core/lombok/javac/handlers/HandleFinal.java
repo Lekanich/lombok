@@ -15,7 +15,7 @@ import static lombok.javac.handlers.JavacHandlerUtil.*;
 
 /**
  * @author Suburban Squirrel
- * @version 1.14.9
+ * @version 1.14.13
  * @since 1.14.9
  */
 @ProviderFor(JavacAnnotationHandler.class)
@@ -32,8 +32,9 @@ public class HandleFinal extends JavacAnnotationHandler<Final> {
 
 	public static void handleFinal(JavacNode node, boolean checkDeep, AST.Kind... validKinds) {
 		for (JavacNode child : node.down()) {
+			if (checkDeep && child.getKind() == AST.Kind.STATEMENT && !(child.get() instanceof JCTree.JCExpression)) handleFinal(child, true, validKinds);
+
 			for (AST.Kind kind : validKinds) {
-				if (checkDeep && child.getKind() == AST.Kind.STATEMENT) handleFinal(child, true, validKinds);
 				if (child.getKind() != kind || node.get() instanceof JCTree.JCForLoop) continue;			// skip variable init in 'for'
 
 				JCTree.JCVariableDecl localDecl = (JCTree.JCVariableDecl) child.get();

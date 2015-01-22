@@ -1,4 +1,6 @@
 class FinalT {
+	private int globalField;
+
 	@lombok.experimental.Final
 	FinalT(java.lang.String cons, @lombok.experimental.NonFinal long zz) {
 		int yCons = 4;
@@ -12,6 +14,7 @@ class FinalT {
 		for (int i = 0; i < 10; i++) {
 			System.out.println(i);
 		}
+		globalField = 0;
 		int[] array = {3,4,5,6,7};
 		for (int i : array) {
 			System.out.println(i);

@@ -1,4 +1,5 @@
 class FinalT {
+	private int globalField;
 	FinalT(final java.lang.String cons, long zz) {
 		final int yCons = 4;
 	}
@@ -10,6 +11,7 @@ class FinalT {
 		for (int i = 0; i < 10; i++) {
 			System.out.println(i);
 		}
+		globalField = 0;
 		final int[] array = {3, 4, 5, 6, 7};
 		for (final int i : array) {
 			System.out.println(i);
