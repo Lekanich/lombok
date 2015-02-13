@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 The Project Lombok Authors.
+ * Copyright (C) 2009-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -162,9 +162,16 @@ public class Javac {
 	public static final TypeTag CTC_VOID = typeTag("VOID");
 	public static final TypeTag CTC_NONE = typeTag("NONE");
 	public static final TypeTag CTC_BOT = typeTag("BOT");
+	public static final TypeTag CTC_ERROR = typeTag("ERROR");
+	public static final TypeTag CTC_UNKNOWN = typeTag("UNKNOWN");
+	public static final TypeTag CTC_UNDETVAR = typeTag("UNDETVAR");
 	public static final TypeTag CTC_CLASS = typeTag("CLASS");
 	
 	public static final TreeTag CTC_NOT_EQUAL = treeTag("NE");
+	public static final TreeTag CTC_LESS_THAN = treeTag("LT");
+	public static final TreeTag CTC_GREATER_THAN = treeTag("GT");
+	public static final TreeTag CTC_LESS_OR_EQUAL= treeTag("LE");
+	public static final TreeTag CTC_GREATER_OR_EQUAL = treeTag("GE");
 	public static final TreeTag CTC_POS = treeTag("POS");
 	public static final TreeTag CTC_NEG = treeTag("NEG");
 	public static final TreeTag CTC_NOT = treeTag("NOT");
@@ -172,10 +179,14 @@ public class Javac {
 	public static final TreeTag CTC_BITXOR = treeTag("BITXOR");
 	public static final TreeTag CTC_UNSIGNED_SHIFT_RIGHT = treeTag("USR");
 	public static final TreeTag CTC_MUL = treeTag("MUL");
+	public static final TreeTag CTC_DIV = treeTag("DIV");
 	public static final TreeTag CTC_PLUS = treeTag("PLUS");
+	public static final TreeTag CTC_MINUS = treeTag("MINUS");
 	public static final TreeTag CTC_EQUAL = treeTag("EQ");
 	public static final TreeTag CTC_PREINC = treeTag("PREINC");
 	public static final TreeTag CTC_PREDEC = treeTag("PREDEC");
+	public static final TreeTag CTC_POSTINC = treeTag("POSTINC");
+	public static final TreeTag CTC_POSTDEC = treeTag("POSTDEC");
 	
 	private static final Method getExtendsClause, getEndPosition, storeEnd;
 	

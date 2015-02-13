@@ -38,6 +38,7 @@ public class Main {
 	));
 	
 	public static void main(String[] args) throws IOException {
+		Thread.currentThread().setContextClassLoader(Main.class.getClassLoader());
 		int err = new Main(SpiLoadUtil.readAllFromIterator(
 				SpiLoadUtil.findServices(LombokApp.class)), Arrays.asList(args)).go();
 		System.exit(err);
@@ -142,7 +143,7 @@ public class Main {
 			out.println("------------------------------");
 		}
 		out.println("projectlombok.org " + Version.getFullVersion());
-		out.println("Copyright (C) 2009-2012 The Project Lombok Authors.");
+		out.println("Copyright (C) 2009-2015 The Project Lombok Authors.");
 		out.println("Run 'lombok license' to see the lombok license agreement.");
 		out.println();
 		out.println("Run lombok without any parameters to start the graphical installer.");

@@ -1,8 +1,22 @@
 Lombok Changelog
 ----------------
 
-### v1.14.9 "Edge Guinea Pig"
-* edge
+### v1.16.3 "Edgy Guinea Pig"
+
+### v1.16.2 (February 10th, 2015)
+* FEATURE: The config key `lombok.extern.findbugs.addSuppressFBWarnings` can now be used to add findbugs suppress warnings annotations to all code lombok generates. This addresses feature request [Issue #702](https://code.google.com/p/projectlombok/issues/detail?id=702).
+* FEATURE: New lombok annotation: `@UtilityClass`, for making utility classes (not instantiable, contains only static 'function' methods). See the [feature documentation](http://projectlombok.org/features/experimental/UtilityClass.html) for more information.
+* BUGFIX: The ant `delombok` task was broken starting with v1.16.0. Note that the task def class has been changed; taskdef `lombok.delombok.ant.Tasks$Delombok` instead of the old `lombok.delombok.ant.DelombokTask`. [Issue #775](https://code.google.com/p/projectlombok/issues/detail?id=775).
+* BUGFIX: `val` in javac would occasionally fail if used inside inner classes. This is (probably) fixed. [Issue #694](https://code.google.com/p/projectlombok/issues/detail?id=694) and [Issue #581](https://code.google.com/p/projectlombok/issues/detail?id=581).
+* BUGFIX: Starting with v1.16.0, lombok would fail to execute as an executable jar if it was in a path was spaced in it. [Issue #777](https://code.google.com/p/projectlombok/issues/detail?id=777).
+* BUGFIX: v1.16.0 did not work in old eclipse versions (such as eclipse indigo). [Issue #783](https://code.google.com/p/projectlombok/issues/detail?id=783).
+
+### v1.16.0 "Candid Duck" (January 26th, 2015)
+* BUGFIX: `@ExtensionMethod` was broken in Eclipse using java 8. [Issue #742](https://code.google.com/p/projectlombok/issues/detail?id=742), [Issue #747](https://code.google.com/p/projectlombok/issues/detail?id=747)
+* BUGFIX: delombok: Using exotic characters in your source files would overzealously backslash-u escape them. Now, all characters are printed unescaped, assuming your chosen encoding can support them. Otherwise, they are escaped. [Issue #759](https://code.google.com/p/projectlombok/issues/detail?id=759)
+* PROMOTION: `@Builder` has graduated from experimental to the main package with a few changes (addition of `@Singular`, removal of the `fluent` and `chain` options). The old one still exists and has been deprecated.
+* FEATURE: `@Builder` now supports adding the `@Singular` annotation to any field/parameter that represents a collection, which results in a method in the generated builder that takes in one element of that collection and adds it. Lombok takes care of generating the appropriate code to produce a compacted immutable version of the appropriate type. In this version, java.util collections and guava's ImmutableCollections are supported. See the [feature documentation](http://projectlombok.org/features/Builder.html) for more information.
+* FEATURE: Added a launcher to the lombok boot process which removes the need for `-Xbootclasspath` to be in your `eclipse.ini` file, and removes all non-public API and third party dependencies (such as ASM) from the lombok jar, thus removing them from your IDE's auto complete offerings in any project that uses lombok. For those debugging lombok, the launcher enables hot code replace which makes debugging a lot easier, as previously one was required to shut down the IDE, rebuild the jar, and relaunch. Add `-Dshadow.override.lombok=/path/to/lombok/bin` to the launch target for hot code replace.
 
 ### v1.14.8 (September 15th, 2014)
 * PERFORMANCE: The configuration system typically hit the filesystem twice per read configuration key instead of hardly ever. This is a continuation of [Issue #682](https://code.google.com/p/projectlombok/issues/detail?id=682).

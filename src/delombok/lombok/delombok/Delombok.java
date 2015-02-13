@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2010 The Project Lombok Authors.
+ * Copyright (C) 2009-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -204,7 +204,7 @@ public class Delombok {
 				System.out.println(indentAndWordbreak(e.getValue(), 4, 70));
 			}
 			System.out.println("Example: -f indent:4 -f emptyLines:indent");
-			System.out.println("The '-f pretty' option is shorthand for '-f suppressWarnings:skip -f danceAroundIdeChecks:skip -f generateDelombokComment:skip -f javaLangAsFQN:skip'");
+			System.out.println("The '-f pretty' option is shorthand for '-f suppressWarnings:skip -f generated:skip -f danceAroundIdeChecks:skip -f generateDelombokComment:skip -f javaLangAsFQN:skip'");
 			System.exit(0);
 			return;
 		}
@@ -301,6 +301,7 @@ public class Delombok {
 		
 		if (prettyEnabled) {
 			if (!formatPrefs.containsKey("suppresswarnings")) formatPrefs.put("suppresswarnings", "skip");
+			if (!formatPrefs.containsKey("generated")) formatPrefs.put("generated", "skip");
 			if (!formatPrefs.containsKey("dancearoundidechecks")) formatPrefs.put("dancearoundidechecks", "skip");
 			if (!formatPrefs.containsKey("generatedelombokcomment")) formatPrefs.put("generatedelombokcomment", "skip");
 			if (!formatPrefs.containsKey("javalangasfqn")) formatPrefs.put("javalangasfqn", "skip");
@@ -509,7 +510,7 @@ public class Delombok {
 			DelombokResult result = new DelombokResult(catcher.getComments(unit), unit, force || options.isChanged(unit), fps);
 			if (verbose) feedback.printf("File: %s [%s]\n", unit.sourcefile.getName(), result.isChanged() ? "delomboked" : "unchanged");
 			Writer rawWriter;
-			if (presetWriter != null) rawWriter = presetWriter;
+			if (presetWriter != null) rawWriter = createUnicodeEscapeWriter(presetWriter);
 			else if (output == null) rawWriter = createStandardOutWriter();
 			else rawWriter = createFileWriter(output, baseMap.get(unit), unit.sourcefile.toUri());
 			BufferedWriter writer = new BufferedWriter(rawWriter);
@@ -603,6 +604,10 @@ public class Delombok {
 	
 	private Writer createStandardOutWriter() {
 		return createUnicodeEscapeWriter(System.out);
+	}
+	
+	private Writer createUnicodeEscapeWriter(Writer writer) {
+		return new UnicodeEscapeWriter(writer, charset);
 	}
 	
 	private Writer createUnicodeEscapeWriter(OutputStream out) {

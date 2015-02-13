@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 The Project Lombok Authors.
+ * Copyright (C) 2013-2014 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -103,9 +103,12 @@ import java.lang.annotation.Target;
  * 	}
  * }
  * </pre>
+ * 
+ * @deprecated {@link lombok.Builder} has been promoted to the main package, so use that one instead.
  */
 @Target({TYPE, METHOD, CONSTRUCTOR})
 @Retention(SOURCE)
+@Deprecated
 public @interface Builder {
 	/** Name of the static method that creates a new builder instance. Default: {@code builder}. */
 	String builderMethodName() default "builder";

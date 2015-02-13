@@ -33,6 +33,7 @@ import java.util.List;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.ConfigurationKeys;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,6 @@ import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
 import lombok.eclipse.EclipseAnnotationHandler;
 import lombok.eclipse.EclipseNode;
-import lombok.experimental.Builder;
 
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
 import org.eclipse.jdt.internal.compiler.ast.AllocationExpression;
@@ -333,8 +333,7 @@ public class HandleConstructor {
 				Statement nullCheck = generateNullCheck(field, sourceNode);
 				if (nullCheck != null) nullChecks.add(nullCheck);
 			}
-			Annotation[] copiedAnnotations = copyAnnotations(source, nonNulls, nullables);
-			if (copiedAnnotations.length != 0) parameter.annotations = copiedAnnotations;
+			parameter.annotations = copyAnnotations(source, nonNulls, nullables);
 			params.add(parameter);
 		}
 		
@@ -348,10 +347,9 @@ public class HandleConstructor {
 				constructorProperties = createConstructorProperties(source, fields);
 			}
 			
-			Annotation[] copiedAnnotations = copyAnnotations(source,
+			constructor.annotations = copyAnnotations(source,
 					onConstructor.toArray(new Annotation[0]),
 					constructorProperties);
-			if (copiedAnnotations.length != 0) constructor.annotations = copiedAnnotations;
 		}
 		
 		constructor.traverse(new SetGeneratedByVisitor(source), typeDeclaration.scope);
@@ -396,9 +394,7 @@ public class HandleConstructor {
 			assigns.add(nameRef);
 			
 			Argument parameter = new Argument(field.name, fieldPos, copyType(field.type, source), Modifier.FINAL);
-
-			Annotation[] copiedAnnotations = copyAnnotations(source, findAnnotations(field, NON_NULL_PATTERN), findAnnotations(field, NULLABLE_PATTERN));
-			if (copiedAnnotations.length != 0) parameter.annotations = copiedAnnotations;
+			parameter.annotations = copyAnnotations(source, findAnnotations(field, NON_NULL_PATTERN), findAnnotations(field, NULLABLE_PATTERN));
 			params.add(parameter);
 		}
 		
