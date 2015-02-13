@@ -93,7 +93,7 @@ public class RunTestsViaEcj extends AbstractRunTests {
 	}
 	
 	@Override
-	public void transformCode(Collection<CompilerMessage> messages, StringWriter result, File file) throws Throwable {
+	public void transformCode(Collection<CompilerMessage> messages, StringWriter result, File file, String encoding, Map<String, String> formatPreferences) throws Throwable {
 		final AtomicReference<CompilationResult> compilationResult_ = new AtomicReference<CompilationResult>();
 		final AtomicReference<CompilationUnitDeclaration> compilationUnit_ = new AtomicReference<CompilationUnitDeclaration>();
 		ICompilerRequestor bitbucketRequestor = new ICompilerRequestor() {
@@ -103,7 +103,7 @@ public class RunTestsViaEcj extends AbstractRunTests {
 		};
 		
 		String source = readFile(file);
-		final CompilationUnit sourceUnit = new CompilationUnit(source.toCharArray(), file.getName(), "UTF-8");
+		final CompilationUnit sourceUnit = new CompilationUnit(source.toCharArray(), file.getName(), encoding == null ? "UTF-8" : encoding);
 		
 		Compiler ecjCompiler = new Compiler(createFileSystem(file), ecjErrorHandlingPolicy(), ecjCompilerOptions(), bitbucketRequestor, new DefaultProblemFactory(Locale.ENGLISH)) {
 			@Override protected synchronized void addCompilationUnit(ICompilationUnit inUnit, CompilationUnitDeclaration parsedUnit) {
@@ -111,8 +111,6 @@ public class RunTestsViaEcj extends AbstractRunTests {
 				super.addCompilationUnit(inUnit, parsedUnit);
 			}
 		};
-		
-		// TODO: Create a configuration based on confLines and set this up so that this compile run will use them.
 		
 		ecjCompiler.compile(new ICompilationUnit[] {sourceUnit});
 		
@@ -137,12 +135,15 @@ public class RunTestsViaEcj extends AbstractRunTests {
 				i.remove();
 			}
 		}
+		classpath.add("bin");
 		classpath.add("dist/lombok.jar");
 		classpath.add("lib/test/commons-logging-commons-logging.jar");
 		classpath.add("lib/test/org.slf4j-slf4j-api.jar");
 		classpath.add("lib/test/org.slf4j-slf4j-ext.jar");
 		classpath.add("lib/test/log4j-log4j.jar");
 		classpath.add("lib/test/org.apache.logging.log4j-log4j-api.jar");
+		classpath.add("lib/test/com.google.guava-guava.jar");
+		classpath.add("lib/test/com.google.code.findbugs-findbugs.jar");
 		return new FileSystem(classpath.toArray(new String[0]), new String[] {file.getAbsolutePath()}, "UTF-8");
 	}
 }

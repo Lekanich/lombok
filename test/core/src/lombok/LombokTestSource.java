@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -45,11 +47,13 @@ public class LombokTestSource {
 	private final File file;
 	private final String content;
 	private final LombokImmutableList<CompilerMessageMatcher> messages;
+	private final Map<String, String> formatPreferences;
 	private final boolean ignore;
 	private final boolean skipCompareContent;
 	private final int versionLowerLimit, versionUpperLimit;
 	private final ConfigurationResolver configuration;
-	
+	private final String specifiedEncoding;
+
 	public boolean versionWithinLimit(int version) {
 		return version >= versionLowerLimit && version <= versionUpperLimit;
 	}
@@ -74,8 +78,16 @@ public class LombokTestSource {
 		return skipCompareContent;
 	}
 	
+	public String getSpecifiedEncoding() {
+		return specifiedEncoding;
+	}
+	
 	public ConfigurationResolver getConfiguration() {
 		return configuration;
+	}
+	
+	public Map<String, String> getFormatPreferences() {
+		return formatPreferences;
 	}
 	
 	private static final Pattern VERSION_STYLE_1 = Pattern.compile("^(\\d+)$");
@@ -123,6 +135,8 @@ public class LombokTestSource {
 		int versionUpper = Integer.MAX_VALUE;
 		boolean ignore = false;
 		boolean skipCompareContent = false;
+		String encoding = null;
+		Map<String, String> formats = new HashMap<String, String>();
 		
 		for (String directive : directives) {
 			directive = directive.trim();
@@ -154,10 +168,27 @@ public class LombokTestSource {
 				continue;
 			}
 			
+			if (lc.startsWith("encoding:")) {
+				encoding = directive.substring(9).trim();
+				continue;
+			}
+			
+			if (lc.startsWith("format:")) {
+				String formatLine = directive.substring(7).trim();
+				int idx = formatLine.indexOf('=');
+				if (idx == -1) throw new IllegalArgumentException("To add a format directive, use: \"//FORMAT: javaLangAsFQN = skip\"");
+				String key = formatLine.substring(0, idx).trim();
+				String value = formatLine.substring(idx + 1).trim();
+				formats.put(key.toLowerCase(), value);
+				continue;
+			}
+			
+			if (lc.startsWith("issue ")) continue;
+			
 			Assert.fail("Directive line \"" + directive + "\" in '" + file.getAbsolutePath() + "' invalid: unrecognized directive.");
 			throw new RuntimeException();
 		}
-		
+		this.specifiedEncoding = encoding;
 		this.versionLowerLimit = versionLower;
 		this.versionUpperLimit = versionUpper;
 		this.ignore = ignore;
@@ -169,6 +200,7 @@ public class LombokTestSource {
 		};
 		
 		this.configuration = new BubblingConfigurationResolver(Collections.singleton(StringConfigurationSource.forString(conf, reporter, file.getAbsolutePath())));
+		this.formatPreferences = Collections.unmodifiableMap(formats);
 	}
 	
 	public static LombokTestSource readDirectives(File file) throws IOException {
@@ -194,13 +226,17 @@ public class LombokTestSource {
 	}
 	
 	public static LombokTestSource read(File sourceFolder, File messagesFolder, String fileName) throws IOException {
+		return read0(sourceFolder, messagesFolder, fileName, "UTF-8");
+	}
+	
+	private static LombokTestSource read0(File sourceFolder, File messagesFolder, String fileName, String encoding) throws IOException {
 		StringBuilder content = null;
 		List<String> directives = new ArrayList<String>();
 		
 		File sourceFile = new File(sourceFolder, fileName);
 		if (sourceFile.exists()) {
 			@Cleanup val rawIn = new FileInputStream(sourceFile);
-			BufferedReader in = new BufferedReader(new InputStreamReader(rawIn, "UTF-8"));
+			BufferedReader in = new BufferedReader(new InputStreamReader(rawIn, encoding));
 			for (String i = in.readLine(); i != null; i = in.readLine()) {
 				if (content != null) {
 					content.append(i).append("\n");
@@ -234,6 +270,15 @@ public class LombokTestSource {
 			}
 		}
 		
-		return new LombokTestSource(sourceFile, content.toString(), messages, directives);
+		LombokTestSource source = new LombokTestSource(sourceFile, content.toString(), messages, directives);
+		String specifiedEncoding = source.getSpecifiedEncoding();
+		
+		// The source file has an 'encoding' header to test encoding issues. Of course, reading the encoding header
+		// requires knowing the encoding of the file first. In practice we get away with it, because UTF-8 and US-ASCII are compatible enough.
+		// The fix is therefore to read in as UTF-8 initially, and if the file requests that it should be read as another encoding, toss it all
+		// and reread that way.
+		
+		if (specifiedEncoding == null || specifiedEncoding.equalsIgnoreCase(encoding)) return source;
+		return read0(sourceFolder, messagesFolder, fileName, specifiedEncoding);
 	}
 }

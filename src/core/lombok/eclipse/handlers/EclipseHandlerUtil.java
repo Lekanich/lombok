@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2014 The Project Lombok Authors.
+ * Copyright (C) 2009-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,6 +48,7 @@ import lombok.core.TypeResolver;
 import lombok.core.configuration.NullCheckExceptionType;
 import lombok.core.debug.ProblemReporter;
 import lombok.core.handlers.HandlerUtil;
+import lombok.eclipse.Eclipse;
 import lombok.eclipse.EclipseAST;
 import lombok.eclipse.EclipseNode;
 import lombok.experimental.Accessors;
@@ -143,7 +144,7 @@ public class EclipseHandlerUtil {
 		return getGeneratedBy(node) != null;
 	}
 	
-	public static ASTNode setGeneratedBy(ASTNode node, ASTNode source) {
+	public static <T extends ASTNode> T setGeneratedBy(T node, ASTNode source) {
 		ASTNode_generatedBy.set(node, source);
 		return node;
 	}
@@ -201,6 +202,7 @@ public class EclipseHandlerUtil {
 	public static void sanityCheckForMethodGeneratingAnnotationsOnBuilderClass(EclipseNode typeNode, EclipseNode errorNode) {
 		List<String> disallowed = null;
 		for (EclipseNode child : typeNode.down()) {
+			if (child.getKind() != Kind.ANNOTATION) continue;
 			for (Class<? extends java.lang.annotation.Annotation> annType : INVALID_ON_BUILDERS) {
 				if (annotationTypeMatches(annType, child)) {
 					if (disallowed == null) disallowed = new ArrayList<String>();
@@ -298,6 +300,10 @@ public class EclipseHandlerUtil {
 		return new SingleTypeReference(typeName, p);
 	}
 	
+	public static TypeReference[] copyTypes(TypeReference[] refs) {
+		return copyTypes(refs, null);
+	}
+	
 	/**
 	 * Convenience method that creates a new array and copies each TypeReference in the source array via
 	 * {@link #copyType(TypeReference, ASTNode)}.
@@ -310,6 +316,10 @@ public class EclipseHandlerUtil {
 			outs[idx++] = copyType(ref, source);
 		}
 		return outs;
+	}
+	
+	public static TypeReference copyType(TypeReference ref) {
+		return copyType(ref, null);
 	}
 	
 	/**
@@ -336,22 +346,23 @@ public class EclipseHandlerUtil {
 					}
 				}
 			}
+			
 			TypeReference typeRef = new ParameterizedQualifiedTypeReference(iRef.tokens, args, iRef.dimensions(), copy(iRef.sourcePositions));
-			setGeneratedBy(typeRef, source);
+			if (source != null) setGeneratedBy(typeRef, source);
 			return typeRef;
 		}
 		
 		if (ref instanceof ArrayQualifiedTypeReference) {
 			ArrayQualifiedTypeReference iRef = (ArrayQualifiedTypeReference) ref;
 			TypeReference typeRef = new ArrayQualifiedTypeReference(iRef.tokens, iRef.dimensions(), copy(iRef.sourcePositions));
-			setGeneratedBy(typeRef, source);
+			if (source != null) setGeneratedBy(typeRef, source);
 			return typeRef;
 		}
 		
 		if (ref instanceof QualifiedTypeReference) {
 			QualifiedTypeReference iRef = (QualifiedTypeReference) ref;
 			TypeReference typeRef = new QualifiedTypeReference(iRef.tokens, copy(iRef.sourcePositions));
-			setGeneratedBy(typeRef, source);
+			if (source != null) setGeneratedBy(typeRef, source);
 			return typeRef;
 		}
 		
@@ -368,14 +379,14 @@ public class EclipseHandlerUtil {
 			}
 			
 			TypeReference typeRef = new ParameterizedSingleTypeReference(iRef.token, args, iRef.dimensions(), (long)iRef.sourceStart << 32 | iRef.sourceEnd);
-			setGeneratedBy(typeRef, source);
+			if (source != null) setGeneratedBy(typeRef, source);
 			return typeRef;
 		}
 		
 		if (ref instanceof ArrayTypeReference) {
 			ArrayTypeReference iRef = (ArrayTypeReference) ref;
 			TypeReference typeRef = new ArrayTypeReference(iRef.token, iRef.dimensions(), (long)iRef.sourceStart << 32 | iRef.sourceEnd);
-			setGeneratedBy(typeRef, source);
+			if (source != null) setGeneratedBy(typeRef, source);
 			return typeRef;
 		}
 		
@@ -386,14 +397,14 @@ public class EclipseHandlerUtil {
 			wildcard.sourceStart = original.sourceStart;
 			wildcard.sourceEnd = original.sourceEnd;
 			if (original.bound != null) wildcard.bound = copyType(original.bound, source);
-			setGeneratedBy(wildcard, source);
+			if (source != null) setGeneratedBy(wildcard, source);
 			return wildcard;
 		}
 		
 		if (ref instanceof SingleTypeReference) {
 			SingleTypeReference iRef = (SingleTypeReference) ref;
 			TypeReference typeRef = new SingleTypeReference(iRef.token, (long)iRef.sourceStart << 32 | iRef.sourceEnd);
-			setGeneratedBy(typeRef, source);
+			if (source != null) setGeneratedBy(typeRef, source);
 			return typeRef;
 		}
 		
@@ -401,19 +412,17 @@ public class EclipseHandlerUtil {
 	}
 	
 	public static Annotation[] copyAnnotations(ASTNode source, Annotation[]... allAnnotations) {
-		boolean allNull = true;
-		
-		List<Annotation> result = new ArrayList<Annotation>();
+		List<Annotation> result = null;
 		for (Annotation[] annotations : allAnnotations) {
 			if (annotations != null) {
-				allNull = false;
 				for (Annotation annotation : annotations) {
+					if (result == null) result = new ArrayList<Annotation>();
 					result.add(copyAnnotation(annotation, source));
 				}
 			}
 		}
-		if (allNull) return null;
-		return result.toArray(new Annotation[0]);
+		
+		return result == null ? null : result.toArray(new Annotation[0]);
 	}
 	
 	public static boolean hasAnnotation(Class<? extends java.lang.annotation.Annotation> type, EclipseNode node) {
@@ -444,8 +453,12 @@ public class EclipseHandlerUtil {
 		return typeMatches(type, node, ((Annotation)node.get()).type);
 	}
 	
+	public static TypeReference cloneSelfType(EclipseNode context) {
+		return cloneSelfType(context, null);
+	}
+	
 	public static TypeReference cloneSelfType(EclipseNode context, ASTNode source) {
-		int pS = source.sourceStart, pE = source.sourceEnd;
+		int pS = source == null ? 0 : source.sourceStart, pE = source == null ? 0 : source.sourceEnd;
 		long p = (long)pS << 32 | pE;
 		EclipseNode type = context;
 		TypeReference result = null;
@@ -457,7 +470,7 @@ public class EclipseHandlerUtil {
 				int idx = 0;
 				for (TypeParameter param : typeDecl.typeParameters) {
 					TypeReference typeRef = new SingleTypeReference(param.name, (long)param.sourceStart << 32 | param.sourceEnd);
-					setGeneratedBy(typeRef, source);
+					if (source != null) setGeneratedBy(typeRef, source);
 					refs[idx++] = typeRef;
 				}
 				result = new ParameterizedSingleTypeReference(typeDecl.name, refs, 0, p);
@@ -465,7 +478,7 @@ public class EclipseHandlerUtil {
 				result = new SingleTypeReference(((TypeDeclaration)type.get()).name, p);
 			}
 		}
-		if (result != null) setGeneratedBy(result, source);
+		if (result != null && source != null) setGeneratedBy(result, source);
 		return result;
 	}
 	
@@ -668,47 +681,39 @@ public class EclipseHandlerUtil {
 	 */
 	public static <A extends java.lang.annotation.Annotation> AnnotationValues<A>
 			createAnnotation(Class<A> type, final EclipseNode annotationNode) {
+		
 		final Annotation annotation = (Annotation) annotationNode.get();
 		Map<String, AnnotationValue> values = new HashMap<String, AnnotationValue>();
 		
-		final MemberValuePair[] pairs = annotation.memberValuePairs();
-		for (Method m : type.getDeclaredMethods()) {
-			if (!Modifier.isPublic(m.getModifiers())) continue;
-			String name = m.getName();
+		MemberValuePair[] memberValuePairs = annotation.memberValuePairs();
+		
+		if (memberValuePairs != null) for (final MemberValuePair pair : memberValuePairs) {
 			List<String> raws = new ArrayList<String>();
 			List<Object> expressionValues = new ArrayList<Object>();
 			List<Object> guesses = new ArrayList<Object>();
-			Expression fullExpression = null;
 			Expression[] expressions = null;
 			
-			if (pairs != null) for (MemberValuePair pair : pairs) {
-				char[] n = pair.name;
-				String mName = n == null ? "value" : new String(pair.name);
-				if (mName.equals(name)) fullExpression = pair.value;
+			char[] n = pair.name;
+			String mName = (n == null || n.length == 0) ? "value" : new String(pair.name);
+			final Expression rhs = pair.value;
+			if (rhs instanceof ArrayInitializer) {
+				expressions = ((ArrayInitializer)rhs).expressions;
+			} else if (rhs != null) {
+				expressions = new Expression[] { rhs };
+			}
+			if (expressions != null) for (Expression ex : expressions) {
+				StringBuffer sb = new StringBuffer();
+				ex.print(0, sb);
+				raws.add(sb.toString());
+				expressionValues.add(ex);
+				guesses.add(calculateValue(ex));
 			}
 			
-			boolean isExplicit = fullExpression != null;
-			
-			if (isExplicit) {
-				if (fullExpression instanceof ArrayInitializer) {
-					expressions = ((ArrayInitializer)fullExpression).expressions;
-				} else expressions = new Expression[] { fullExpression };
-				if (expressions != null) for (Expression ex : expressions) {
-					StringBuffer sb = new StringBuffer();
-					ex.print(0, sb);
-					raws.add(sb.toString());
-					expressionValues.add(ex);
-					guesses.add(calculateValue(ex));
-				}
-			}
-			
-			final Expression fullExpr = fullExpression;
 			final Expression[] exprs = expressions;
-			
-			values.put(name, new AnnotationValue(annotationNode, raws, expressionValues, guesses, isExplicit) {
+			values.put(mName, new AnnotationValue(annotationNode, raws, expressionValues, guesses, true) {
 				@Override public void setError(String message, int valueIdx) {
 					Expression ex;
-					if (valueIdx == -1) ex = fullExpr;
+					if (valueIdx == -1) ex = rhs;
 					else ex = exprs != null ? exprs[valueIdx] : null;
 					
 					if (ex == null) ex = annotation;
@@ -721,7 +726,7 @@ public class EclipseHandlerUtil {
 				
 				@Override public void setWarning(String message, int valueIdx) {
 					Expression ex;
-					if (valueIdx == -1) ex = fullExpr;
+					if (valueIdx == -1) ex = rhs;
 					else ex = exprs != null ? exprs[valueIdx] : null;
 					
 					if (ex == null) ex = annotation;
@@ -732,6 +737,21 @@ public class EclipseHandlerUtil {
 					annotationNode.addWarning(message, sourceStart, sourceEnd);
 				}
 			});
+		}
+		
+		for (Method m : type.getDeclaredMethods()) {
+			if (!Modifier.isPublic(m.getModifiers())) continue;
+			String name = m.getName();
+			if (!values.containsKey(name)) {
+				values.put(name, new AnnotationValue(annotationNode, new ArrayList<String>(), new ArrayList<Object>(), new ArrayList<Object>(), false) {
+					@Override public void setError(String message, int valueIdx) {
+						annotationNode.addError(message);
+					}
+					@Override public void setWarning(String message, int valueIdx) {
+						annotationNode.addWarning(message);
+					}
+				});
+			}
 		}
 		
 		return new AnnotationValues<A>(type, values, annotationNode);
@@ -865,7 +885,7 @@ public class EclipseHandlerUtil {
 	}
 	
 	static Expression createFieldAccessor(EclipseNode field, FieldAccess fieldAccess, ASTNode source) {
-		int pS = source.sourceStart, pE = source.sourceEnd;
+		int pS = source == null ? 0 : source.sourceStart, pE = source == null ? 0 : source.sourceEnd;
 		long p = (long)pS << 32 | pE;
 		
 		boolean lookForGetter = lookForGetter(field, fieldAccess);
@@ -881,14 +901,17 @@ public class EclipseHandlerUtil {
 					ref.receiver = new SingleNameReference(((TypeDeclaration)containerNode.get()).name, p);
 				} else {
 					Expression smallRef = new FieldReference(field.getName().toCharArray(), p);
-					setGeneratedBy(smallRef, source);
+					if (source != null) setGeneratedBy(smallRef, source);
 					return smallRef;
 				}
 			} else {
 				ref.receiver = new ThisReference(pS, pE);
 			}
-			setGeneratedBy(ref, source);
-			setGeneratedBy(ref.receiver, source);
+			
+			if (source != null) {
+				setGeneratedBy(ref, source);
+				setGeneratedBy(ref.receiver, source);
+			}
 			return ref;
 		}
 		
@@ -1191,8 +1214,9 @@ public class EclipseHandlerUtil {
 	 * Inserts a field into an existing type. The type must represent a {@code TypeDeclaration}.
 	 * The field carries the &#64;{@link SuppressWarnings}("all") annotation.
 	 */
-	public static EclipseNode injectFieldSuppressWarnings(EclipseNode type, FieldDeclaration field) {
-		field.annotations = createSuppressWarningsAll(field, field.annotations);
+	public static EclipseNode injectFieldAndMarkGenerated(EclipseNode type, FieldDeclaration field) {
+		field.annotations = addSuppressWarningsAll(type, field, field.annotations);
+		field.annotations = addGenerated(type, field, field.annotations);
 		return injectField(type, field);
 	}
 	
@@ -1237,7 +1261,8 @@ public class EclipseHandlerUtil {
 	 * Inserts a method into an existing type. The type must represent a {@code TypeDeclaration}.
 	 */
 	public static EclipseNode injectMethod(EclipseNode type, AbstractMethodDeclaration method) {
-		method.annotations = createSuppressWarningsAll(method, method.annotations);
+		method.annotations = addSuppressWarningsAll(type, method, method.annotations);
+		method.annotations = addGenerated(type, method, method.annotations);
 		TypeDeclaration parent = (TypeDeclaration) type.get();
 		
 		if (parent.methods == null) {
@@ -1279,9 +1304,10 @@ public class EclipseHandlerUtil {
 	 * @param type New type (class, interface, etc) to inject.
 	 */
 	public static EclipseNode injectType(final EclipseNode typeNode, final TypeDeclaration type) {
-		type.annotations = createSuppressWarningsAll(type, type.annotations);
+		type.annotations = addSuppressWarningsAll(typeNode, type, type.annotations);
+		type.annotations = addGenerated(typeNode, type, type.annotations);
 		TypeDeclaration parent = (TypeDeclaration) typeNode.get();
-
+		
 		if (parent.memberTypes == null) {
 			parent.memberTypes = new TypeDeclaration[] { type };
 		} else {
@@ -1295,8 +1321,31 @@ public class EclipseHandlerUtil {
 	}
 	
 	private static final char[] ALL = "all".toCharArray();
+	private static final char[] JUSTIFICATION = "justification".toCharArray();
+	private static final char[] GENERATED_CODE = "generated code".toCharArray();
+	private static final char[] LOMBOK = "lombok".toCharArray();
+	private static final char[][] JAVAX_ANNOTATION_GENERATED = Eclipse.fromQualifiedName("javax.annotation.Generated");
+	private static final char[][] EDU_UMD_CS_FINDBUGS_ANNOTATIONS_SUPPRESSFBWARNINGS = Eclipse.fromQualifiedName("edu.umd.cs.findbugs.annotations.SuppressFBWarnings");
 	
-	public static Annotation[] createSuppressWarningsAll(ASTNode source, Annotation[] originalAnnotationArray) {
+	public static Annotation[] addSuppressWarningsAll(EclipseNode node, ASTNode source, Annotation[] originalAnnotationArray) {
+		Annotation[] anns = addAnnotation(source, originalAnnotationArray, TypeConstants.JAVA_LANG_SUPPRESSWARNINGS, new StringLiteral(ALL, 0, 0, 0));
+		
+		if (Boolean.TRUE.equals(node.getAst().readConfiguration(ConfigurationKeys.ADD_FINDBUGS_SUPPRESSWARNINGS_ANNOTATIONS))) {
+			MemberValuePair mvp = new MemberValuePair(JUSTIFICATION, 0, 0, new StringLiteral(GENERATED_CODE, 0, 0, 0));
+			anns = addAnnotation(source, anns, EDU_UMD_CS_FINDBUGS_ANNOTATIONS_SUPPRESSFBWARNINGS, mvp);
+		}
+		
+		return anns;
+	}
+	
+	public static Annotation[] addGenerated(EclipseNode node, ASTNode source, Annotation[] originalAnnotationArray) {
+		if (Boolean.FALSE.equals(node.getAst().readConfiguration(ConfigurationKeys.ADD_GENERATED_ANNOTATIONS))) return originalAnnotationArray;
+		return addAnnotation(source, originalAnnotationArray, JAVAX_ANNOTATION_GENERATED, new StringLiteral(LOMBOK, 0, 0, 0));
+	}
+	
+	private static Annotation[] addAnnotation(ASTNode source, Annotation[] originalAnnotationArray, char[][] annotationTypeFqn, ASTNode arg) {
+		char[] simpleName = annotationTypeFqn[annotationTypeFqn.length - 1];
+		
 		if (originalAnnotationArray != null) for (Annotation ann : originalAnnotationArray) {
 			char[] lastToken = null;
 			
@@ -1307,20 +1356,41 @@ public class EclipseHandlerUtil {
 				lastToken = ((SingleTypeReference) ann.type).token;
 			}
 			
-			if (lastToken != null && new String(lastToken).equals("SuppressWarnings")) return originalAnnotationArray;
+			if (lastToken != null && Arrays.equals(simpleName, lastToken)) return originalAnnotationArray;
 		}
 		
 		int pS = source.sourceStart, pE = source.sourceEnd;
 		long p = (long)pS << 32 | pE;
-		long[] poss = new long[3];
+		long[] poss = new long[annotationTypeFqn.length];
 		Arrays.fill(poss, p);
-		QualifiedTypeReference suppressWarningsType = new QualifiedTypeReference(TypeConstants.JAVA_LANG_SUPPRESSWARNINGS, poss);
-		setGeneratedBy(suppressWarningsType, source);
-		SingleMemberAnnotation ann = new SingleMemberAnnotation(suppressWarningsType, pS);
-		ann.declarationSourceEnd = pE;
-		ann.memberValue = new StringLiteral(ALL, pS, pE, 0);
+		QualifiedTypeReference qualifiedType = new QualifiedTypeReference(annotationTypeFqn, poss);
+		setGeneratedBy(qualifiedType, source);
+		Annotation ann;
+		if (arg instanceof Expression) {
+			SingleMemberAnnotation sma = new SingleMemberAnnotation(qualifiedType, pS);
+			sma.declarationSourceEnd = pE;
+			arg.sourceStart = pS;
+			arg.sourceEnd = pE;
+			sma.memberValue = (Expression) arg;
+			setGeneratedBy(sma.memberValue, source);
+			ann = sma;
+		} else if (arg instanceof MemberValuePair) {
+			NormalAnnotation na = new NormalAnnotation(qualifiedType, pS);
+			na.declarationSourceEnd = pE;
+			arg.sourceStart = pS;
+			arg.sourceEnd = pE;
+			na.memberValuePairs = new MemberValuePair[] {(MemberValuePair) arg};
+			setGeneratedBy(na.memberValuePairs[0], source);
+			setGeneratedBy(na.memberValuePairs[0].value, source);
+			na.memberValuePairs[0].value.sourceStart = pS;
+			na.memberValuePairs[0].value.sourceEnd = pE;
+			ann = na;
+		} else {
+			MarkerAnnotation ma = new MarkerAnnotation(qualifiedType, pS);
+			ma.declarationSourceEnd = pE;
+			ann = ma;
+		}
 		setGeneratedBy(ann, source);
-		setGeneratedBy(ann.memberValue, source);
 		if (originalAnnotationArray == null) return new Annotation[] { ann };
 		Annotation[] newAnnotationArray = new Annotation[originalAnnotationArray.length + 1];
 		System.arraycopy(originalAnnotationArray, 0, newAnnotationArray, 0, originalAnnotationArray.length);
@@ -1489,7 +1559,7 @@ public class EclipseHandlerUtil {
 	 * with eclipse versions before 3.7.
 	 */
 	public static IntLiteral makeIntLiteral(char[] token, ASTNode source) {
-		int pS = source.sourceStart, pE = source.sourceEnd;
+		int pS = source == null ? 0 : source.sourceStart, pE = source == null ? 0 : source.sourceEnd;
 		IntLiteral result;
 		try {
 			if (intLiteralConstructor != null) {
@@ -1504,7 +1574,8 @@ public class EclipseHandlerUtil {
 		} catch (InstantiationException e) {
 			throw Lombok.sneakyThrow(e);
 		}
-		setGeneratedBy(result, source);
+		
+		if (source != null) setGeneratedBy(result, source);
 		return result;
 	}
 	
