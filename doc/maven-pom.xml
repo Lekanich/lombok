@@ -9,6 +9,17 @@
 	<url>http://projectlombok.org</url>
 	<description>Spice up your java: Automatic Resource Management, automatic generation of getters, setters, equals, hashCode and toString, and more!</description>
 	<dependencies></dependencies>
+	<properties>
+		<hamster.repository.id>internal</hamster.repository.id>
+		<hamster.repository.url>http://192.168.4.104:6080/repository/internal</hamster.repository.url>
+	</properties>
+
+	<distributionManagement>
+		<repository>
+			<id>${hamster.repository.id}</id>
+			<url>${hamster.repository.url}</url>
+		</repository>
+	</distributionManagement>
 	<licenses>
 		<license>
 			<name>The MIT License</name>
@@ -42,6 +53,11 @@
 			<id>rgrootjans</id>
 			<name>Robbert Jan Grootjans</name>
 			<timezone>+1</timezone>
+		</developer>
+		<developer>
+			<id>squirrel</id>
+			<name>Suburban Squirrel Hihi</name>
+			<timezone>+3</timezone>
 		</developer>
 	</developers>
 	<build>
