@@ -11,7 +11,7 @@
 	<dependencies></dependencies>
 	<properties>
 		<hamster.repository.id>internal</hamster.repository.id>
-		<hamster.repository.url>http://192.168.4.104:6080/repository/internal</hamster.repository.url>
+		<hamster.repository.url>http://repu.huyaru.com/</hamster.repository.url>
 	</properties>
 
 	<distributionManagement>
