@@ -34,6 +34,7 @@ import lombok.patcher.MethodTarget;
 import lombok.patcher.ScriptManager;
 import lombok.patcher.StackRequest;
 import lombok.patcher.TargetMatcher;
+import lombok.patcher.TransplantMapper;
 import lombok.patcher.scripts.ScriptBuilder;
 
 /**
@@ -73,6 +74,13 @@ public class EclipsePatcher implements AgentLauncher.AgentLaunchable {
 	private static void registerPatchScripts(Instrumentation instrumentation, boolean reloadExistingClasses, boolean ecjOnly, Class<?> launchingContext) {
 		ScriptManager sm = new ScriptManager();
 		sm.registerTransformer(instrumentation);
+		sm.setTransplantMapper(new TransplantMapper() {
+			public String mapResourceName(int classFileFormatVersion, String resourceName) {
+				if (classFileFormatVersion < 50) return resourceName;
+				return "Class50/" + resourceName;
+			}
+		});
+		
 		if (!ecjOnly) {
 			EclipseLoaderPatcher.patchEquinoxLoaders(sm, launchingContext);
 			patchCatchReparse(sm);
@@ -304,6 +312,13 @@ public class EclipsePatcher implements AgentLauncher.AgentLaunchable {
 				.target(new MethodTarget("org.eclipse.jdt.internal.ui.text.java.JavaFormattingStrategy", "format", "void"))
 				.callToWrap(new Hook("org.eclipse.jdt.internal.corext.util.CodeFormatterUtil", "reformat", "org.eclipse.text.edits.TextEdit",
 						"int", "java.lang.String", "int", "int", "int", "java.lang.String", "java.util.Map"))
+				.symbol("lombok.disable").build());
+		
+		sm.addScript(ScriptBuilder.setSymbolDuringMethodCall()
+				.target(new MethodTarget("org.eclipse.jdt.internal.corext.fix.CodeFormatFix", "createCleanUp", "org.eclipse.jdt.ui.cleanup.ICleanUpFix",
+						"org.eclipse.jdt.core.ICompilationUnit", "org.eclipse.jface.text.IRegion[]", "boolean", "boolean", "boolean", "boolean"))
+				.callToWrap(new Hook("org.eclipse.jdt.internal.corext.util.CodeFormatterUtil", "reformat", "org.eclipse.text.edits.TextEdit",
+						"int", "java.lang.String", "int", "java.lang.String", "java.util.Map"))
 				.symbol("lombok.disable").build());
 	}
 	

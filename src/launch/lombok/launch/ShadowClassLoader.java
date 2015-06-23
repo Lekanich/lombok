@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 The Project Lombok Authors.
+ * Copyright (C) 2014-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,10 +33,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Vector;
 import java.util.WeakHashMap;
+import java.util.Map.Entry;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -79,6 +84,8 @@ import java.util.jar.JarFile;
  */
 class ShadowClassLoader extends ClassLoader {
 	private static final String SELF_NAME = "lombok/launch/ShadowClassLoader.class";
+	private static final ConcurrentMap<String, Class<?>> highlanderMap = new ConcurrentHashMap<String, Class<?>>();
+	
 	private final String SELF_BASE;
 	private final File SELF_BASE_FILE;
 	private final int SELF_BASE_LENGTH;
@@ -86,27 +93,25 @@ class ShadowClassLoader extends ClassLoader {
 	private final List<File> override = new ArrayList<File>();
 	private final String sclSuffix;
 	private final List<String> parentExclusion = new ArrayList<String>();
-	
-	/**
-	 * Calls the {@link ShadowClassLoader(ClassLoader, String, String, String[]) constructor with no exclusions and the source of this class as base.
-	 */
-	ShadowClassLoader(ClassLoader source, String sclSuffix) {
-		this(source, sclSuffix, null);
-	}
+	private final List<String> highlanders = new ArrayList<String>();
 	
 	/**
 	 * @param source The 'parent' classloader.
 	 * @param sclSuffix The suffix of the shadowed class files in our own jar. For example, if this is {@code lombok}, then the class files in your jar should be {@code foo/Bar.SCL.lombok} and not {@code foo/Bar.class}.
 	 * @param selfBase The (preferably absolute) path to our own jar. This jar will be searched for class/SCL.sclSuffix files.
 	 * @param parentExclusion For example {@code "lombok."}; upon invocation of loadClass of this loader, the parent loader ({@code source}) will NOT be invoked if the class to be loaded begins with anything in the parent exclusion list. No exclusion is applied for getResource(s).
+	 * @param highlanders SCL will put in extra effort to ensure that these classes (in simple class spec, so {@code foo.bar.baz.ClassName}) are only loaded once as a class, even if many different classloaders try to load classes, such as equinox/OSGi.
 	 */
-	ShadowClassLoader(ClassLoader source, String sclSuffix, String selfBase, String... parentExclusion) {
+	ShadowClassLoader(ClassLoader source, String sclSuffix, String selfBase, List<String> parentExclusion, List<String> highlanders) {
 		super(source);
 		this.sclSuffix = sclSuffix;
 		if (parentExclusion != null) for (String pe : parentExclusion) {
 			pe = pe.replace(".", "/");
 			if (!pe.endsWith("/")) pe = pe + "/";
 			this.parentExclusion.add(pe);
+		}
+		if (highlanders != null) for (String hl : highlanders) {
+			this.highlanders.add(hl);
 		}
 		
 		if (selfBase != null) {
@@ -139,62 +144,100 @@ class ShadowClassLoader extends ClassLoader {
 			}
 		}
 	}
-	
-	private static final String EMPTY_MARKER = new String("--EMPTY JAR--");
-	private Map<String, Object> jarContentsCacheTrackers = new HashMap<String, Object>();
-	private static WeakHashMap<Object, String> trackerCache = new WeakHashMap<Object, String>();
-	private static WeakHashMap<Object, List<String>> jarContentsCache = new WeakHashMap<Object, List<String>>();
-	
+
+	private final Map<String, Object> mapJarPathToTracker = new HashMap<String, Object>();
+	private static final Map<Object, String> mapTrackerToJarPath = new WeakHashMap<Object, String>();
+	private static final Map<Object, Set<String>> mapTrackerToJarContents = new WeakHashMap<Object, Set<String>>();
+
 	/**
 	 * This cache ensures that any given jar file is only opened once in order to determine the full contents of it.
 	 * We use 'trackers' to make sure that the bulk of the memory taken up by this cache (the list of strings representing the content of a jar file)
 	 * gets garbage collected if all ShadowClassLoaders that ever tried to request a listing of this jar file, are garbage collected.
 	 */
-	private List<String> getOrMakeJarListing(String absolutePathToJar) {
-		List<String> list = retrieveFromCache(absolutePathToJar);
-		synchronized (list) {
-			if (list.isEmpty()) {
-				try {
-					JarFile jf = new JarFile(absolutePathToJar);
-					try {
-						Enumeration<JarEntry> entries = jf.entries();
-						while (entries.hasMoreElements()) {
-							JarEntry jarEntry = entries.nextElement();
-							if (!jarEntry.isDirectory()) list.add(jarEntry.getName());
-						}
-					} finally {
-						jf.close();
-					}
-				} catch (Exception ignore) {}
-				if (list.isEmpty()) list.add(EMPTY_MARKER);
+	private Set<String> getOrMakeJarListing(final String absolutePathToJar) {
+		synchronized (mapTrackerToJarPath) {
+			/*
+			 * 1) Check our private instance JarPath-to-Tracker Mappings:
+			 */
+			Object ourTracker = mapJarPathToTracker.get(absolutePathToJar);
+			if (ourTracker != null) {
+				/*
+				 * Yes, we are already tracking this Jar. Just return its contents...
+				 */
+				return mapTrackerToJarContents.get(ourTracker);
 			}
-		}
-		
-		if (list.size() == 1 && list.get(0) == EMPTY_MARKER) return Collections.emptyList();
-		return list;
-	}
-	
-	private List<String> retrieveFromCache(String absolutePathToJar) {
-		synchronized (trackerCache) {
-			Object tracker = jarContentsCacheTrackers.get(absolutePathToJar);
-			if (tracker != null) return jarContentsCache.get(tracker);
 			
-			for (Map.Entry<Object, String> entry : trackerCache.entrySet()) {
+			/*
+			 * 2) Not tracked by us as yet. Check statically whether others have tracked this JarPath:
+			 */
+			for (Entry<Object, String> entry : mapTrackerToJarPath.entrySet()) {
 				if (entry.getValue().equals(absolutePathToJar)) {
-					tracker = entry.getKey();
-					break;
+					/*
+					 * Yes, 3rd party is tracking this jar. We must track too, then return its contents.
+					 */
+					Object otherTracker = entry.getKey();
+					mapJarPathToTracker.put(absolutePathToJar, otherTracker);
+					return mapTrackerToJarContents.get(otherTracker);
 				}
 			}
-			List<String> result = null;
-			if (tracker != null) result = jarContentsCache.get(tracker);
-			if (result != null) return result;
 			
-			tracker = new Object();
-			List<String> list = new ArrayList<String>();
-			jarContentsCache.put(tracker, list);
-			trackerCache.put(tracker, absolutePathToJar);
-			jarContentsCacheTrackers.put(absolutePathToJar, tracker);
-			return list;
+			/*
+			 * 3) Not tracked by anyone so far. Build, publish, track & return Jar contents...
+			 */
+			Object newTracker = new Object();
+			Set<String> jarMembers = getJarMemberSet(absolutePathToJar);
+			
+			mapTrackerToJarContents.put(newTracker, jarMembers);
+			mapTrackerToJarPath.put(newTracker, absolutePathToJar);
+			mapJarPathToTracker.put(absolutePathToJar, newTracker);
+			
+			return jarMembers;
+		}
+	}
+	
+	/**
+	 * Return a {@link Set} of members in the Jar identified by {@code absolutePathToJar}.
+	 * 
+	 * @param absolutePathToJar Cache key
+	 * @return a Set with the Jar member-names
+	 */
+	private Set<String> getJarMemberSet(String absolutePathToJar) {
+		/*
+		 * Note:
+		 * Our implementation returns a HashSet. initialCapacity and loadFactor are carefully tweaked for speed and RAM optimization purposes.
+		 * 
+		 * Benchmark:
+		 * The HashSet implementation is about 10% slower to build (only happens once) than the ArrayList.
+		 * The HashSet with shiftBits = 1 was about 33 times(!) faster than the ArrayList for retrievals.
+		 */
+		try {
+			int shiftBits = 1;  //  (fast, but big)  0 <= shiftBits <= 5, say  (slower & compact)
+			JarFile jar = new JarFile(absolutePathToJar);
+			
+			/*
+			 * Find the first power of 2 >= JarSize (as calculated in HashSet constructor)
+			 */
+			int jarSizePower2 = Integer.highestOneBit(jar.size());
+			if (jarSizePower2 != jar.size()) jarSizePower2 <<= 1;
+			if (jarSizePower2 == 0) jarSizePower2 = 1;
+			
+			Set<String> jarMembers = new HashSet<String>(jarSizePower2 >> shiftBits,  1 << shiftBits);
+			try {
+				Enumeration<JarEntry> entries = jar.entries();
+				while (entries.hasMoreElements()) {
+					JarEntry jarEntry = entries.nextElement();
+					if (jarEntry.isDirectory()) continue;
+					jarMembers.add(jarEntry.getName());
+				}
+			} catch (Exception ignore) {
+				// ignored; if the jar can't be read, treating it as if the jar contains no classes is just what we want.
+			} finally {
+				jar.close();
+			}
+			return jarMembers;
+		}
+		catch (Exception newJarFileException) {
+			return Collections.emptySet();
 		}
 	}
 	
@@ -226,7 +269,7 @@ class ShadowClassLoader extends ClassLoader {
 				absoluteFile = location.getAbsoluteFile();
 			}
 		}
-		List<String> jarContents = getOrMakeJarListing(absoluteFile.getAbsolutePath());
+		Set<String> jarContents = getOrMakeJarListing(absoluteFile.getAbsolutePath());
 		
 		String absoluteUri = absoluteFile.toURI().toString();
 		
@@ -234,13 +277,17 @@ class ShadowClassLoader extends ClassLoader {
 			if (jarContents.contains(altName)) {
 				return new URI("jar:" + absoluteUri + "!/" + altName).toURL();
 			}
-		} catch (Exception e) {}
+		} catch (Exception ignore) {
+			// intentional fallthrough
+		}
 		
 		try {
 			if (jarContents.contains(name)) {
 				return new URI("jar:" + absoluteUri + "!/" + name).toURL();
 			}
-		} catch(Exception e) {}
+		} catch(Exception ignore) {
+			// intentional fallthrough
+		}
 		
 		return null;
 	}
@@ -360,7 +407,12 @@ class ShadowClassLoader extends ClassLoader {
 			if (alreadyLoaded != null) return alreadyLoaded;
 		}
 		
-		String fileNameOfClass = name.replace(".",  "/") + ".class";
+		if (highlanders.contains(name)) {
+			Class<?> c = highlanderMap.get(name);
+			if (c != null) return c;
+		}
+		
+		String fileNameOfClass = name.replace(".", "/") + ".class";
 		URL res = getResource_(fileNameOfClass, true);
 		if (res == null) {
 			if (!exclusionListMatch(fileNameOfClass)) return super.loadClass(name, resolve);
@@ -391,7 +443,22 @@ class ShadowClassLoader extends ClassLoader {
 			throw new ClassNotFoundException("I/O exception reading class " + name, e);
 		}
 		
-		Class<?> c = defineClass(name, b, 0, p);
+		Class<?> c;
+		try {
+			c = defineClass(name, b, 0, p);
+		} catch (LinkageError e) {
+			if (highlanders.contains(name)) {
+				Class<?> alreadyDefined = highlanderMap.get(name);
+				if (alreadyDefined != null) return alreadyDefined;
+			}
+			throw e;
+		}
+		
+		if (highlanders.contains(name)) {
+			Class<?> alreadyDefined = highlanderMap.putIfAbsent(name, c);
+			if (alreadyDefined != null) c = alreadyDefined;
+		}
+		
 		if (resolve) resolveClass(c);
 		return c;
 	}
