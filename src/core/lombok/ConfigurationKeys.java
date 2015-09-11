@@ -402,14 +402,14 @@ public class ConfigurationKeys {
 	 */
 	public static final ConfigurationKey<FlagUsageType> FIELD_DEFAULTS_FLAG_USAGE = new ConfigurationKey<FlagUsageType>("lombok.fieldDefaults.flagUsage", "Emit a warning or error if @FieldDefaults is used.") {};
 	
-	// ----- Wither -----
+	// ----- Helper -----
 	
 	/**
-	 * lombok configuration: {@code lombok.wither.flagUsage} = {@code WARNING} | {@code ERROR}.
+	 * lombok configuration: {@code lombok.helper.flagUsage} = {@code WARNING} | {@code ERROR}.
 	 * 
-	 * If set, <em>any</em> usage of {@code @Wither} results in a warning / error.
+	 * If set, <em>any</em> usage of {@code @Helper} results in a warning / error.
 	 */
-	public static final ConfigurationKey<FlagUsageType> WITHER_FLAG_USAGE = new ConfigurationKey<FlagUsageType>("lombok.wither.flagUsage", "Emit a warning or error if @Wither is used.") {};
+	public static final ConfigurationKey<FlagUsageType> HELPER_FLAG_USAGE = new ConfigurationKey<FlagUsageType>("lombok.helper.flagUsage", "Emit a warning or error if @Helper is used.") {};
 	
 	// ----- UtilityClass -----
 	
@@ -418,7 +418,16 @@ public class ConfigurationKeys {
 	 * 
 	 * If set, <em>any</em> usage of {@code @UtilityClass} results in a warning / error.
 	 */
-	public static final ConfigurationKey<FlagUsageType> UTLITY_CLASS_FLAG_USAGE = new ConfigurationKey<FlagUsageType>("lombok.utilityClass.flagUsage", "Emit a warning or error if @UtilityClass is used.") {};
+	public static final ConfigurationKey<FlagUsageType> UTILITY_CLASS_FLAG_USAGE = new ConfigurationKey<FlagUsageType>("lombok.utilityClass.flagUsage", "Emit a warning or error if @UtilityClass is used.") {};
+	
+	// ----- Wither -----
+	
+	/**
+	 * lombok configuration: {@code lombok.wither.flagUsage} = {@code WARNING} | {@code ERROR}.
+	 * 
+	 * If set, <em>any</em> usage of {@code @Wither} results in a warning / error.
+	 */
+	public static final ConfigurationKey<FlagUsageType> WITHER_FLAG_USAGE = new ConfigurationKey<FlagUsageType>("lombok.wither.flagUsage", "Emit a warning or error if @Wither is used.") {};
 	
 	// ----- Configuration System -----
 	
