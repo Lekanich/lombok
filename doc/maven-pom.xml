@@ -5,10 +5,21 @@
 	<artifactId>lombok</artifactId>
 	<packaging>jar</packaging>
 	<version>@VERSION@</version>
-	<name>Project Lombok</name>
+	<name>Project Lombok(HC)</name>
 	<url>https://projectlombok.org</url>
 	<description>Spice up your java: Automatic Resource Management, automatic generation of getters, setters, equals, hashCode and toString, and more!</description>
 	<dependencies></dependencies>
+	<properties>
+		<hamster.repository.id>internal</hamster.repository.id>
+		<hamster.repository.url>http://repu.huyaru.com/</hamster.repository.url>
+	</properties>
+
+	<distributionManagement>
+		<repository>
+			<id>${hamster.repository.id}</id>
+			<url>${hamster.repository.url}</url>
+		</repository>
+	</distributionManagement>
 	<licenses>
 		<license>
 			<name>The MIT License</name>
@@ -43,6 +54,49 @@
 			<name>Robbert Jan Grootjans</name>
 			<timezone>+1</timezone>
 		</developer>
+		<developer>
+			<id>squirrel</id>
+			<name>Suburban Squirrel Hihi</name>
+			<timezone>+3</timezone>
+		</developer>
 	</developers>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<version>2.8.2</version>
+				<executions>
+					<execution>
+						<id>custom-deploy</id>
+						<phase>deploy</phase>
+						<goals>
+							<goal>deploy-file</goal>
+						</goals>
+						<configuration>
+							<repositoryId>${hamster.repository.id}</repositoryId>
+							<url>${hamster.repository.url}</url>
+							<groupId>${groupId}</groupId>
+							<artifactId>${artifactId}</artifactId>
+							<version>${version}</version>
+							<packaging>jar</packaging>
+							<pomFile>pom.xml</pomFile>
+							<file>target/lombok-@VERSION@.jar</file>
+							<sources>target/lombok-@VERSION@-sources.jar</sources>
+							<javadoc>target/lombok-@VERSION@-javadoc.jar</javadoc>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-install-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>
 

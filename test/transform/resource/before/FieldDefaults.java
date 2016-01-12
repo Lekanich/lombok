@@ -2,7 +2,7 @@
 class FieldDefaults1 {
 	int x;
 	@lombok.experimental.NonFinal int y;
-	
+
 	FieldDefaults1(int x) {
 		this.x = x;
 	}
