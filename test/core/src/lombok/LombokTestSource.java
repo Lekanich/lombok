@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014 The Project Lombok Authors.
+ * Copyright (C) 2014-2015 The Project Lombok Authors.
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,6 +51,7 @@ public class LombokTestSource {
 	private final Map<String, String> formatPreferences;
 	private final boolean ignore;
 	private final boolean skipCompareContent;
+	private final boolean unchanged;
 	private final int versionLowerLimit, versionUpperLimit;
 	private final ConfigurationResolver configuration;
 	private final String specifiedEncoding;
@@ -72,6 +74,10 @@ public class LombokTestSource {
 	
 	public boolean isIgnore() {
 		return ignore;
+	}
+	
+	public boolean forceUnchanged() {
+		return unchanged;
 	}
 	
 	public boolean isSkipCompareContent() {
@@ -123,6 +129,7 @@ public class LombokTestSource {
 	}
 	
 	private static final Pattern IGNORE_PATTERN = Pattern.compile("^\\s*ignore\\s*(?:[-:].*)?$", Pattern.CASE_INSENSITIVE);
+	private static final Pattern UNCHANGED_PATTERN = Pattern.compile("^\\s*unchanged\\s*(?:[-:].*)?$", Pattern.CASE_INSENSITIVE);
 	private static final Pattern SKIP_COMPARE_CONTENT_PATTERN = Pattern.compile("^\\s*skip[- ]?compare[- ]?content\\s*(?:[-:].*)?$", Pattern.CASE_INSENSITIVE);
 	
 	private LombokTestSource(File file, String content, List<CompilerMessageMatcher> messages, List<String> directives) {
@@ -135,6 +142,7 @@ public class LombokTestSource {
 		int versionUpper = Integer.MAX_VALUE;
 		boolean ignore = false;
 		boolean skipCompareContent = false;
+		boolean unchanged = false;
 		String encoding = null;
 		Map<String, String> formats = new HashMap<String, String>();
 		
@@ -143,6 +151,11 @@ public class LombokTestSource {
 			String lc = directive.toLowerCase();
 			if (IGNORE_PATTERN.matcher(directive).matches()) {
 				ignore = true;
+				continue;
+			}
+			
+			if (UNCHANGED_PATTERN.matcher(directive).matches()) {
+				unchanged = true;
 				continue;
 			}
 			
@@ -193,6 +206,7 @@ public class LombokTestSource {
 		this.versionUpperLimit = versionUpper;
 		this.ignore = ignore;
 		this.skipCompareContent = skipCompareContent;
+		this.unchanged = unchanged;
 		ConfigurationProblemReporter reporter = new ConfigurationProblemReporter() {
 			@Override public void report(String sourceDescription, String problem, int lineNumber, CharSequence line) {
 				Assert.fail("Problem on directive line: " + problem + " at conf line #" + lineNumber + " (" + line + ")");
@@ -207,19 +221,27 @@ public class LombokTestSource {
 		List<String> directives = new ArrayList<String>();
 		
 		{
-			@Cleanup val rawIn = new FileInputStream(file);
-			BufferedReader in = new BufferedReader(new InputStreamReader(rawIn, "UTF-8"));
-			for (String i = in.readLine(); i != null; i = in.readLine()) {
-				if (i.isEmpty()) continue;
-				
-				if (i.startsWith("//")) {
-					directives.add(i.substring(2));
-				} else {
-					break;
+			InputStream rawIn = new FileInputStream(file);
+			try {
+				BufferedReader in = new BufferedReader(new InputStreamReader(rawIn, "UTF-8"));
+				try {
+					for (String i = in.readLine(); i != null; i = in.readLine()) {
+						if (i.isEmpty()) continue;
+						
+						if (i.startsWith("//")) {
+							directives.add(i.substring(2));
+						} else {
+							break;
+						}
+					}
+				}
+				finally {
+					in.close();
 				}
 			}
-			in.close();
-			rawIn.close();
+			finally {
+				rawIn.close();
+			}
 		}
 		
 		return new LombokTestSource(file, "", null, directives);
@@ -235,25 +257,33 @@ public class LombokTestSource {
 		
 		File sourceFile = new File(sourceFolder, fileName);
 		if (sourceFile.exists()) {
-			@Cleanup val rawIn = new FileInputStream(sourceFile);
-			BufferedReader in = new BufferedReader(new InputStreamReader(rawIn, encoding));
-			for (String i = in.readLine(); i != null; i = in.readLine()) {
-				if (content != null) {
-					content.append(i).append("\n");
-					continue;
+			InputStream rawIn = new FileInputStream(sourceFile);
+			try {
+				BufferedReader in = new BufferedReader(new InputStreamReader(rawIn, encoding));
+				try {
+					for (String i = in.readLine(); i != null; i = in.readLine()) {
+						if (content != null) {
+							content.append(i).append("\n");
+							continue;
+						}
+						
+						if (i.isEmpty()) continue;
+						
+						if (i.startsWith("//")) {
+							directives.add(i.substring(2));
+						} else {
+							content = new StringBuilder();
+							content.append(i).append("\n");
+						}
+					}
 				}
-				
-				if (i.isEmpty()) continue;
-				
-				if (i.startsWith("//")) {
-					directives.add(i.substring(2));
-				} else {
-					content = new StringBuilder();
-					content.append(i).append("\n");
+				finally {
+					in.close();
 				}
 			}
-			in.close();
-			rawIn.close();
+			finally {
+				rawIn.close();
+			}
 		}
 		
 		if (content == null) content = new StringBuilder();
@@ -262,9 +292,13 @@ public class LombokTestSource {
 		if (messagesFolder != null) {
 			File messagesFile = new File(messagesFolder, fileName + ".messages");
 			try {
-				@Cleanup val rawIn = new FileInputStream(messagesFile);
-				messages = CompilerMessageMatcher.readAll(rawIn);
-				rawIn.close();
+				InputStream rawIn = new FileInputStream(messagesFile);
+				try {
+					messages = CompilerMessageMatcher.readAll(rawIn);
+				}
+				finally {
+					rawIn.close();
+				}
 			} catch (FileNotFoundException e) {
 				messages = null;
 			}

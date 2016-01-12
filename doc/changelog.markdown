@@ -2,7 +2,24 @@ Lombok Changelog
 ----------------
 
 ### v1.16.7 "Edgy Guinea Pig"
-* New edge
+
+#### Special Edge release features, feedback extra welcome
+* PLATFORM: Starting jdk9 support: No more error message regarding `pid`
+* BUGFIX-IN-PROGRESS: Added extra logging and reporting to investigate problems regarding `lombok.javac.apt.Processos`
+
+#### Regular changes 
+* FEATURE: `@Builder` updates: It now generates `clearFieldName()` methods if `@Singular` is used. [Issue #967](https://github.com/rzwitserloot/lombok/issues/967).
+* FEATURE: `@Builder` updates: The annotation can now be put on instance methods. [Issue #63](https://github.com/rzwitserloot/lombok/issues/63).
+* FEATURE: `@Builder` updates: `@Singular` now supports guava's ImmutableTable [Issue #937](https://github.com/rzwitserloot/lombok/issues/937).
+* FEATURE: A `lombok.config` key can now be used to make your fields `final` and/or `private`... __everywhere__. We'll be monitoring the performance impact of this for a while. We'll touch every source file if you turn these on, and even if you don't, we have to call into the lombok config system for every file.
+* FEATURE: A `lombok.config` key can now be used to set the default behaviour of `@EqualsAndHashCode` when generating methods for a class that extends something in regards to calling the superclass implementations of `equals` and `hashCode` or not. [Issue #965](https://github.com/rzwitserloot/lombok/issues/965).
+* FEATURE: Putting `@Wither` on abstract classes now generates something slightly more useful: An abstract wither method. [Issue #945](https://github.com/rzwitserloot/lombok/issues/945).
+* BUGFIX: lambdas with 1 argument that has an explicit type did not pretty print correctly. [Issue #972](https://github.com/rzwitserloot/lombok/issues/972).
+* BUGFIX: When using delombok, a source file with only `@NonNull` annotations on parameters as lombok feature would not get properly delomboked.  [Issue #950](https://github.com/rzwitserloot/lombok/issues/950).
+* BUGFIX: `@Delegate` in javac would generate arrays instead of varargs parameters. [Issue #932](https://github.com/rzwitserloot/lombok/issues/932).
+* BUGFIX: `@Value` and `@FieldDefaults` no longer make uninitialized static fields final. [Issue #928](https://github.com/rzwitserloot/lombok/issues/928).
+* ENHANCEMENT: `@Builder.ObtainVia` now has `@Retention(SOURCE)` [Issue #986](https://github.com/rzwitserloot/lombok/issues/986).
+* ENHANCEMENT: Putting `@NonNull` on a parameter of an abstract method no longer generates a warning, to allow you to use this annotation to document intended behaviour [Issue #807](https://github.com/rzwitserloot/lombok/issues/807).
 
 ### v1.16.6 (August 18th, 2015)
 * FEATURE: `@Helper` can be placed on method-local inner classes to make all methods in the class accessible to the rest of the method. [Full documentation](https://projectlombok.org/features/experimental/Helper.html).

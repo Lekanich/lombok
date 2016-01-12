@@ -21,11 +21,13 @@
  */
 package lombok.javac.handlers;
 
+import static com.sun.tools.javac.code.Flags.GENERATEDCONSTR;
 import static lombok.core.handlers.HandlerUtil.*;
 import static lombok.javac.Javac.*;
 import static lombok.javac.JavacAugments.JCTree_generatedNode;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -55,6 +57,9 @@ import lombok.javac.JavacTreeMaker;
 
 import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Flags;
+import com.sun.tools.javac.code.Scope;
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.tree.DocCommentTable;
 import com.sun.tools.javac.tree.JCTree;
@@ -840,14 +845,18 @@ public class JavacHandlerUtil {
 		
 		List<JCTree> insertAfter = null;
 		List<JCTree> insertBefore = type.defs;
-		while (insertBefore.tail != null) {
+		while (true) {
+			boolean skip = false;
 			if (insertBefore.head instanceof JCVariableDecl) {
 				JCVariableDecl f = (JCVariableDecl) insertBefore.head;
-				if (isEnumConstant(f) || isGenerated(f)) {
-					insertAfter = insertBefore;
-					insertBefore = insertBefore.tail;
-					continue;
-				}
+				if (isEnumConstant(f) || isGenerated(f)) skip = true;
+			} else if (insertBefore.head instanceof JCMethodDecl) {
+				if ((((JCMethodDecl) insertBefore.head).mods.flags & GENERATEDCONSTR) != 0) skip = true;
+			}
+			if (skip) {
+				insertAfter = insertBefore;
+				insertBefore = insertBefore.tail;
+				continue;
 			}
 			break;
 		}
@@ -864,6 +873,32 @@ public class JavacHandlerUtil {
 	
 	public static boolean isEnumConstant(final JCVariableDecl field) {
 		return (field.mods.flags & Flags.ENUM) != 0;
+	}
+	
+	// jdk9 support, types have changed, names stay the same
+	static class ClassSymbolMembersField {
+		private static final Field membersField;
+		private static final Method removeMethod;
+		
+		static {
+			Field f = null;
+			Method m = null;
+			try {
+				f = ClassSymbol.class.getField("members_field");
+				m = f.getType().getMethod("remove", Symbol.class);
+			} catch (Exception e) {}
+			membersField = f;
+			removeMethod = m;
+		}
+		
+		static void remove(ClassSymbol from, Symbol toRemove) {
+			if (from == null) return;
+			try {
+				Scope scope = (Scope) membersField.get(from);
+				if (scope == null) return;
+				removeMethod.invoke(scope, toRemove);
+			} catch (Exception e) {}
+		}
 	}
 	
 	/**
@@ -884,9 +919,7 @@ public class JavacHandlerUtil {
 						JavacNode tossMe = typeNode.getNodeFor(def);
 						if (tossMe != null) tossMe.up().removeChild(tossMe);
 						type.defs = addAllButOne(type.defs, idx);
-						if (type.sym != null && type.sym.members_field != null) {
-							 type.sym.members_field.remove(((JCMethodDecl)def).sym);
-						}
+						ClassSymbolMembersField.remove(type.sym, ((JCMethodDecl)def).sym);
 						break;
 					}
 				}

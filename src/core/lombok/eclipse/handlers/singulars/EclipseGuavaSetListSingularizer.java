@@ -28,18 +28,29 @@ import lombok.eclipse.handlers.EclipseSingularsRecipes.EclipseSingularizer;
 
 @ProviderFor(EclipseSingularizer.class)
 public class EclipseGuavaSetListSingularizer extends EclipseGuavaSingularizer {
-	// TODO com.google.common.collect.ImmutableTable
 	// TODO com.google.common.collect.ImmutableRangeSet
 	// TODO com.google.common.collect.ImmutableMultiset and com.google.common.collect.ImmutableSortedMultiset
+	private static final LombokImmutableList<String> SUFFIXES = LombokImmutableList.of("");
+	private static final LombokImmutableList<String> SUPPORTED_TYPES = LombokImmutableList.of(
+		"com.google.common.collect.ImmutableCollection", 
+		"com.google.common.collect.ImmutableList", 
+		"com.google.common.collect.ImmutableSet", 
+		"com.google.common.collect.ImmutableSortedSet"
+	);
+	
 	@Override public LombokImmutableList<String> getSupportedTypes() {
-		return LombokImmutableList.of(
-				"com.google.common.collect.ImmutableCollection", 
-				"com.google.common.collect.ImmutableList", 
-				"com.google.common.collect.ImmutableSet", 
-				"com.google.common.collect.ImmutableSortedSet");
+		return SUPPORTED_TYPES;
 	}
-
-	@Override protected boolean isMap() {
-		return false;
+	
+	@Override protected LombokImmutableList<String> getArgumentSuffixes() {
+		return SUFFIXES;
+	}
+	
+	@Override protected String getAddMethodName() {
+		return "add";
+	}
+	
+	@Override protected String getAddAllTypeName() {
+		return "java.lang.Iterable";
 	}
 }
