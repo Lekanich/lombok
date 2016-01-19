@@ -21,6 +21,7 @@ import com.sun.tools.javac.util.Name;
 import lombok.AccessLevel;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
+import lombok.core.handlers.HandlerUtil;
 import lombok.experimental.FXProperty;
 import lombok.javac.JavacAnnotationHandler;
 import lombok.javac.JavacNode;
@@ -35,6 +36,39 @@ import static lombok.javac.handlers.JavacHandlerUtil.toGetterName;
 
 @ProviderFor(JavacAnnotationHandler.class)
 public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
+
+	final private static class TypeParameterMap {
+		private Map<Name, Type> parameterMap = new HashMap<Name, Type>();
+
+		public void mapParameters(ClassType type) {
+			List<Type> parameters = type.typarams_field;
+			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field;
+
+			if (parameters.length() == parametersVar.length()) {
+				for (int i = 0; i < parameters.length(); i++) {
+					Name parameterName = parametersVar.get(i).tsym.getSimpleName();
+					if (!parameterMap.containsKey(parameterName)) {
+						parameterMap.put(parameterName, parameters.get(i));
+					}
+				}
+			}
+		}
+
+		public List<Type> getParametersType(List<Type> types) {
+			ListBuffer<Type> list = new ListBuffer<Type>();
+			for (Type type : types) {
+				Name key = type.tsym.getSimpleName();
+				if (parameterMap.containsKey(key)) {
+					list.add(parameterMap.get(key));
+				}
+			}
+			return list.toList();
+		}
+
+		public Type getParameterType(Type type) {
+			return parameterMap.get(type.tsym.getSimpleName());
+		}
+	}
 
 	@Override
 	public void handle(AnnotationValues<FXProperty> annotation, JCAnnotation ast, JavacNode annotationNode) {
@@ -114,8 +148,9 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		JCVariableDecl fieldNode = (JCVariableDecl) field.get();
 		String delegatingMethodName = "getValue";
 
-		Name methodName = field.toName(toGetterName(field));
 		JCExpression methodType = findType(treeMaker, fieldNode, delegatingMethodName);
+		Name methodName = field.toName(HandlerUtil.toGetterName(field.getAst(),
+				JavacHandlerUtil.getAccessorsForField(field), field.getName(), isBooleanClass(methodType)));
 		List<JCStatement> statements = createMethodBody(treeMaker, field, delegatingMethodName);
 		List<JCTypeParameter> methodGenericParams = List.nil();
 		List<JCVariableDecl> parameters = List.nil();
@@ -186,36 +221,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return (ClassType)((ClassType) type.tsym.type).supertype_field;
 	}
 
-	final private static class TypeParameterMap {
-		private Map<Name, Type> parameterMap = new HashMap<Name, Type>();
-
-		public void mapParameters(ClassType type) {
-			List<Type> parameters = type.typarams_field;
-			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field;
-
-			if (parameters.length() == parametersVar.length()) {
-				for (int i = 0; i < parameters.length(); i++) {
-					Name parameterName = parametersVar.get(i).tsym.getSimpleName();
-					if (!parameterMap.containsKey(parameterName)) {
-						parameterMap.put(parameterName, parameters.get(i));
-					}
-				}
-			}
-		}
-
-		public List<Type> getParametersType(List<Type> types) {
-			ListBuffer<Type> list = new ListBuffer<Type>();
-			for (Type type : types) {
-				Name key = type.tsym.getSimpleName();
-				if (parameterMap.containsKey(key)) {
-					list.add(parameterMap.get(key));
-				}
-			}
-			return list.toList();
-		}
-
-		public Type getParameterType(Type type) {
-			return parameterMap.get(type.tsym.getSimpleName());
-		}
+	private boolean isBooleanClass(JCExpression methodType) {
+		return methodType != null && methodType.toString().equals("java.lang.Boolean");
 	}
 }
