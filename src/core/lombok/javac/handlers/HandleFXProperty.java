@@ -1,20 +1,17 @@
 package lombok.javac.handlers;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
+import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
+import com.sun.tools.javac.code.TypeTags;
 import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCAnnotation;
-import com.sun.tools.javac.tree.JCTree.JCBlock;
-import com.sun.tools.javac.tree.JCTree.JCExpression;
-import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
-import com.sun.tools.javac.tree.JCTree.JCStatement;
-import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
-import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
@@ -23,15 +20,13 @@ import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
 import lombok.core.handlers.HandlerUtil;
 import lombok.experimental.FXProperty;
+import lombok.javac.Javac;
 import lombok.javac.JavacAnnotationHandler;
 import lombok.javac.JavacNode;
 import lombok.javac.JavacTreeMaker;
 import org.mangosdk.spi.ProviderFor;
-import static lombok.javac.handlers.JavacHandlerUtil.deleteAnnotationIfNeccessary;
-import static lombok.javac.handlers.JavacHandlerUtil.injectMethod;
-import static lombok.javac.handlers.JavacHandlerUtil.methodExists;
-import static lombok.javac.handlers.JavacHandlerUtil.toAllGetterNames;
-import static lombok.javac.handlers.JavacHandlerUtil.toGetterName;
+import static lombok.javac.Javac.CTC_VOID;
+import static lombok.javac.handlers.JavacHandlerUtil.*;
 
 
 @ProviderFor(JavacAnnotationHandler.class)
@@ -97,38 +92,94 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			}
 		}
 
-		createGetterForPropertyValue(fieldNode, annotationNode, level);
-		createAccessor(fieldNode, annotationNode, level, fieldNode.getName() + "Property");
-//		createGetterForProperty(node, annotationNode, level);
+//		createGetterForPropertyValue(fieldNode, annotationNode, level);
+//		createGetterForProperty(fieldNode, annotationNode, level);
+		createSetterForPropertyValue(fieldNode, annotationNode, level, true);
 	}
 
-	public void createAccessor(JavacNode fieldNode, JavacNode annotationNode, AccessLevel level, String accesorName) {
-		if (accesorName == null) {
-			annotationNode.addWarning(
-					String.format("Not generating %s() for this field: It does not fit your @Accessors prefix list."));
-			return;
-		}
+	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, AccessLevel level) {
+		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
+		JavacTreeMaker treeMaker = field.getTreeMaker();
 
-		if (methodExist(fieldNode, annotationNode, accesorName, new java.util.ArrayList<String>() { })) return;
-
-//		injectMethod(fieldNode.up(), createAccessor(););
-	}
-
-	public void createGetterForPropertyValue(JavacNode fieldNode, JavacNode annotationNode, AccessLevel level) {
-		String methodName = toGetterName(fieldNode);
+		String delegatingMethodName = "getValue";
+		JCExpression methodType = treeMaker.Type(findType(fieldDecl, delegatingMethodName));
+		String methodName = toGetterName(field, methodType);
 
 		if (methodName == null) {
 			annotationNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");
 			return;
 		}
 
-		if (methodExist(fieldNode, annotationNode, methodName, toAllGetterNames(fieldNode))) return;
+		if (methodExist(field, annotationNode, methodName, toAllGetterNames(field, methodType))) return;
 
-		injectMethod(fieldNode.up(), createGetter(level, fieldNode, fieldNode.getTreeMaker(), annotationNode));
+		List<JCStatement> statements = createMethodBody(treeMaker, field, delegatingMethodName);
+		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
+		if (methodDecl == null) return;
+
+		injectMethod(field.up(), methodDecl);
 	}
 
-	public boolean methodExist(JavacNode fieldNode, JavacNode annotationNode, String methodName, java.util.List<String> methodNames) {
-		for (String altName : methodNames) {
+	public void createSetterForPropertyValue(JavacNode field, JavacNode annotationNode, AccessLevel level, boolean returnThis) {
+		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
+		JavacTreeMaker treeMaker = field.getTreeMaker();
+
+		String delegatingMethodName = "setValue";
+		JCExpression methodType = returnThis ? cloneSelfType(field) : treeMaker.Type(Javac.createVoidType(treeMaker, CTC_VOID));
+		String methodName = toSetterName(field);
+
+		if (methodName == null) {
+			annotationNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");
+			return;
+		}
+
+		if (methodExist(field, annotationNode, methodName, toAllSetterNames(field))) return;
+
+		Type type = findMethod(fieldDecl, delegatingMethodName).type;
+		List<Type> types = type.getParameterTypes();
+		List<JCExpression> args = List.of(treeMaker.Type(types.head));
+		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, field.getName(), delegatingMethodName), args);
+		ListBuffer<JCStatement> statements = new ListBuffer<JCStatement>().append(treeMaker.Exec(expression));
+
+		if (returnThis) {
+			JCReturn returnStatement = treeMaker.Return(treeMaker.Ident(field.toName("this")));
+			statements.append(returnStatement);
+		}
+
+		long flags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, field.getContext());
+		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), fieldDecl.name, treeMaker.Type(findType(fieldDecl, "getValue")), null);
+
+//		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.of(param));
+		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements.toList(), List.<JCVariableDecl>nil());
+		if (methodDecl == null) return;
+
+		injectMethod(field.up(), methodDecl);
+	}
+
+	public void createGetterForProperty(JavacNode field, JavacNode annotationNode, AccessLevel level) {
+		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
+		JavacTreeMaker treeMaker = field.getTreeMaker();
+		HandleGetter handleGetter = new HandleGetter();
+
+		JCExpression methodType = handleGetter.copyType(treeMaker, fieldDecl);
+		String methodName = field.getName() + "Property";
+
+		if (methodName == null) {
+			annotationNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");
+			return;
+		}
+
+		if (methodExist(field, annotationNode, methodName, List.of(methodName))) return;
+
+		List<JCStatement> statements = handleGetter.createSimpleGetterBody(treeMaker, field);
+		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
+		if (methodDecl == null) return;
+
+		injectMethod(field.up(), methodDecl);
+	}
+
+	public boolean methodExist(JavacNode fieldNode, JavacNode annotationNode, String methodName, java.util.List<String> altNameList) {
+
+		for (String altName : altNameList) {
 			switch (methodExists(altName, fieldNode, false, 0)) {
 				case EXISTS_BY_LOMBOK:
 					return true;
@@ -144,21 +195,14 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return false;
 	}
 
-	public JCMethodDecl createGetter(AccessLevel level, JavacNode field, JavacTreeMaker treeMaker, JavacNode annotationNode) {
-		JCVariableDecl fieldNode = (JCVariableDecl) field.get();
-		String delegatingMethodName = "getValue";
-
-		JCExpression methodType = findType(treeMaker, fieldNode, delegatingMethodName);
-		Name methodName = field.toName(HandlerUtil.toGetterName(field.getAst(),
-				JavacHandlerUtil.getAccessorsForField(field), field.getName(), isBooleanClass(methodType)));
-		List<JCStatement> statements = createMethodBody(treeMaker, field, delegatingMethodName);
+	public JCMethodDecl createMethodDecl(AccessLevel level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
+		JavacTreeMaker treeMaker = field.getTreeMaker();
 		List<JCTypeParameter> methodGenericParams = List.nil();
-		List<JCVariableDecl> parameters = List.nil();
 		List<JCExpression> throwsClauses = List.nil();
 		JCBlock methodBody = treeMaker.Block(0, statements);
 
-		JCMethodDecl decl = treeMaker.MethodDef(treeMaker.Modifiers(JavacHandlerUtil.toJavacModifier(level)),
-									methodName,
+		JCMethodDecl decl = treeMaker.MethodDef(treeMaker.Modifiers(toJavacModifier(level)),
+									field.toName(methodName),
 									methodType,
 									methodGenericParams,
 									parameters,
@@ -170,14 +214,13 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public List<JCStatement> createMethodBody(JavacTreeMaker treeMaker, JavacNode field, String methodName) {
-//		boolean lookForGetter = lookForGetter(field, FieldAccess.ALWAYS_FIELD);
 
 		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(),
-				JavacHandlerUtil.chainDots(field, field.getName(), methodName), List.<JCExpression>nil());
+				chainDots(field, field.getName(), methodName), List.<JCExpression>nil());
 		return List.<JCStatement>of(treeMaker.Return(expression));
 	}
 
-	public JCExpression findType(JavacTreeMaker treeMaker, JCVariableDecl fieldNode, String methodName) {
+	public Type findType(JCVariableDecl fieldNode, String methodName) {
 		Type resType;
 		TypeParameterMap map = new TypeParameterMap();
 
@@ -201,10 +244,10 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 					if (resType.isParameterized()) {
 						List<Type> parameters = map.getParametersType(((ClassType) resType.tsym.type).typarams_field);
 						ClassType type = new ClassType(resType, parameters, resType.tsym);
-						return treeMaker.Type(type);
+						return type;
 					}
 
-					return treeMaker.Type(resType);
+					return resType;
 				}
 			}
 
@@ -217,11 +260,41 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return null;
 	}
 
+	public Symbol findMethod(JCVariableDecl fieldNode, String methodName) {
+
+		ClassType currentType = (ClassType) fieldNode.sym.type;
+		if (currentType.isParameterized()) {
+			currentType = takeSuperType(currentType);
+		} else {
+			currentType = (ClassType) currentType.supertype_field;
+		}
+
+		while (currentType != null) {
+			for (Symbol sym : currentType.tsym.getEnclosedElements()) {
+				if (sym.getSimpleName().toString().equals(methodName)) {
+					return sym;
+				}
+			}
+
+			currentType = takeSuperType(currentType);
+		}
+
+		return null;
+	}
+
 	private ClassType takeSuperType(ClassType type) {
 		return (ClassType)((ClassType) type.tsym.type).supertype_field;
 	}
 
 	private boolean isBooleanClass(JCExpression methodType) {
 		return methodType != null && methodType.toString().equals("java.lang.Boolean");
+	}
+
+	private java.util.List<String> toAllGetterNames(JavacNode field, JCExpression methodType) {
+		return HandlerUtil.toAllGetterNames(field.getAst(), getAccessorsForField(field), field.getName(), isBooleanClass(methodType));
+	}
+
+	private String toGetterName(JavacNode field, JCExpression methodType) {
+		return HandlerUtil.toGetterName(field.getAst(), getAccessorsForField(field), field.getName(), isBooleanClass(methodType));
 	}
 }
