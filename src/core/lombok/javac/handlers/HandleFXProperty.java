@@ -16,7 +16,6 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
 import lombok.AccessLevel;
-import lombok.ConfigurationKeys;
 import lombok.Getter;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
@@ -81,7 +80,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		deleteAnnotationIfNeccessary(annotationNode, FXProperty.class);
 
 		JavacNode fieldNode = annotationNode.up();
-		if (fieldNode == null) return;
 
 		if (fieldNode == null || fieldNode.getKind() != Kind.FIELD) {
 			annotationNode.addError("@FXProperty is only supported on a field.");
@@ -93,12 +91,12 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			return;
 		}
 
-		if (getterPresent(fieldNode)) {
+		if (isGetterAnnotationPresent(fieldNode)) {
 			annotationNode.addError("@FXProperty isn't compatible with @Getter");
+			return;
 		}
 
-		FXProperty annotationInstance = annotation.getInstance();
-		AccessLevel level = annotationInstance.value();
+		AccessLevel level = annotation.getInstance().value();
 
 		createGetterForProperty(fieldNode, annotationNode, level);
 		createSetterForPropertyValue(fieldNode, annotationNode, level);
@@ -254,7 +252,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 			if (currentType.isParameterized()) {
 				map.mapParameters(currentType);
-				currentType = takeSuperType(currentType);
+				currentType = (ClassType)((ClassType) currentType.tsym.type).supertype_field;
 			} else {
 				currentType = (ClassType) currentType.supertype_field;
 			}
@@ -263,15 +261,11 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return null;
 	}
 
-	private ClassType takeSuperType(ClassType type) {
-		return (ClassType)((ClassType) type.tsym.type).supertype_field;
-	}
-
 	public boolean isBooleanClass(JCExpression methodType) {
 		return methodType != null && methodType.toString().equals("java.lang.Boolean");
 	}
 
-	public boolean getterPresent(JavacNode field) {
+	public boolean isGetterAnnotationPresent(JavacNode field) {
 		for (JavacNode node : field.down()) {
 			if (annotationTypeMatches(Getter.class, node)) {
 				return true;
