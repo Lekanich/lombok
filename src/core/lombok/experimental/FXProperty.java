@@ -21,9 +21,4 @@ public @interface FXProperty {
 	 * If you want your method to be non-public, you can specify an alternate access level here.
 	 */
 	lombok.AccessLevel value() default lombok.AccessLevel.PUBLIC;
-
-	/**
-	 * If you want your property field without final modifier, you can specify this here,
-	 */
-	boolean makeFinal() default true;
 }
