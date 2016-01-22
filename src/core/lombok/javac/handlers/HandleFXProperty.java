@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import javafx.beans.property.*;
+import javafx.beans.value.*;
 import javafx.css.*;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
@@ -99,7 +100,11 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		AccessLevel level = annotation.getInstance().value();
 
 		createGetterForProperty(fieldNode, annotationNode, level);
-		createSetterForPropertyValue(fieldNode, annotationNode, level);
+
+		if (isInheritedFromClass(fieldNode, WritableValue.class)) {
+			createSetterForPropertyValue(fieldNode, annotationNode, level);
+		}
+
 		createGetterForPropertyValue(fieldNode, annotationNode, level);
 	}
 
