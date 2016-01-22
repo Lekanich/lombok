@@ -12,6 +12,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
+import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
@@ -39,6 +40,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		private Map<Name, Type> parameterMap = new HashMap<Name, Type>();
 
 		public void mapParameters(ClassType type) {
+			if (!type.isParameterized()) return;
+
 			List<Type> parameters = type.typarams_field;
 			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field;
 			Map<Name, Type> map = new HashMap<Name, Type>();
@@ -113,7 +116,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 
 		String delegatingMethodName = "getValue";
-		JCExpression methodType = treeMaker.Type(findType(fieldDecl, delegatingMethodName));
+		JCExpression methodType = treeMaker.Type(findType(field, delegatingMethodName));
 		String methodName = toGetterName(field, methodType);
 
 		if (methodName == null) {
@@ -162,14 +165,14 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		String methodName = toSetterName(field);
 
 		if (methodName == null) {
-			annotationNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");
+			annotationNode.addWarning("Not generating setter for this field: It does not fit your @Accessors prefix list.");
 			return;
 		}
 
 		if (methodExist(field, annotationNode, methodName, toAllSetterNames(field))) return;
 
-		Name name = annotationNode.toName(makePropertyName(field));
-		List<JCExpression> args = List.<JCExpression>of(treeMaker.Ident(name));
+		Name argName = annotationNode.toName(makePropertyName(field));
+		List<JCExpression> args = List.<JCExpression>of(treeMaker.Ident(argName));
 		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, "this", field.getName(), delegatingMethodName), args);
 		ListBuffer<JCStatement> statements = new ListBuffer<JCStatement>().append(treeMaker.Exec(expression));
 
@@ -179,7 +182,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		}
 
 		long flags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, annotationNode.getContext());
-		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), name, treeMaker.Type(findType(fieldDecl, "getValue")), null);
+		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), argName, treeMaker.Type(findType(field, "getValue")), null);
 
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements.toList(), List.of(param));
 		if (methodDecl == null) return;
@@ -228,8 +231,10 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return List.<JCStatement>of(treeMaker.Return(expression));
 	}
 
-	public Type findType(JCVariableDecl variableDecl, String methodName) {
+	public Type findType(JavacNode javacNode, String methodName) {
 		Type resType;
+		Types types = Types.instance(javacNode.getContext());
+		JCVariableDecl variableDecl = (JCVariableDecl) javacNode.get();
 		TypeParameterMap map = new TypeParameterMap();
 
 		ClassType currentType = (ClassType) variableDecl.sym.type;
@@ -255,12 +260,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 				}
 			}
 
-			if (currentType.isParameterized()) {
-				map.mapParameters(currentType);
-				currentType = (ClassType)((ClassType) currentType.tsym.type).supertype_field;
-			} else {
-				currentType = (ClassType) currentType.supertype_field;
-			}
+			currentType = (ClassType) types.supertype(currentType);
+			map.mapParameters(currentType);
 		}
 
 		return null;
