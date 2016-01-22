@@ -41,7 +41,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 		public void mapParameters(ClassType type) {
 			if (!type.isParameterized()) return;
-
 			List<Type> parameters = type.typarams_field;
 			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field;
 			Map<Name, Type> map = new HashMap<Name, Type>();
@@ -261,7 +260,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			}
 
 			currentType = (ClassType) types.supertype(currentType);
-			map.mapParameters(currentType);
+			if (currentType.isParameterized()) map.mapParameters(currentType);
 		}
 
 		return null;
