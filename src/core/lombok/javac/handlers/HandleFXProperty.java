@@ -103,7 +103,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 		createGetterForProperty(fieldNode, annotationNode, level);
 
-		if (isInheritedFromClass(fieldNode, WritableValue.class)) {
+		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, "javafx.beans.property.WritableValue")) {
 			createSetterForPropertyValue(fieldNode, annotationNode, level);
 		}
 
@@ -155,7 +155,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public void createSetterForPropertyValue(JavacNode field, JavacNode annotationNode, AccessLevel level) {
-		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		boolean returnThis = shouldReturnThis(field);
 
@@ -280,19 +279,31 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public boolean isProperty(JavacNode node) {
-		return isInheritedFromClass(node, ReadOnlyProperty.class) || isInheritedFromClass(node, StyleableProperty.class);
+		Types typeUtil = Types.instance(node.getContext());
+		JCVariableDecl variableDecl = (JCVariableDecl) node.get();
+
+		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, "javafx.beans.property.ReadOnlyProperty") ||
+				isInheritedFromClass(typeUtil, variableDecl.vartype.type, "javafx.beans.property.StyleableProperty");
 	}
 
-	public boolean isInheritedFromClass(JavacNode node, Class clazz) {
-		JCVariableDecl fieldDecl = (JCVariableDecl) node.get();
-
-		try {
-			Class<?> fildClass = Class.forName(fieldDecl.vartype.type.tsym.flatName().toString());
-			return clazz.isAssignableFrom(fildClass);
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-			return false;
+	public boolean isInheritedFromClass(Types typesUtil, Type type, String clazz) {
+		Type superType = typesUtil.supertype(type);
+		if (superType != null ) {
+			return superType.tsym.flatName().toString().equals(clazz)
+					|| implementsInterface(typesUtil, type, clazz)
+					|| isInheritedFromClass(typesUtil, superType, clazz);
 		}
+		return false;
+	}
+
+	public boolean implementsInterface(Types typesUtil, Type type, String clazz) {
+		for (Type interfaceType : typesUtil.interfaces(type)) {
+			if (interfaceType.tsym.flatName().toString().equals(clazz)) {
+				return true;
+			}
+			if (implementsInterface(typesUtil, interfaceType, clazz)) return true;
+		}
+		return false;
 	}
 
 	private java.util.List<String> toAllGetterNames(JavacNode field, JCExpression methodType) {
