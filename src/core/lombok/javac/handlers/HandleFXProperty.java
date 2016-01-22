@@ -103,7 +103,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 		createGetterForProperty(fieldNode, annotationNode, level);
 
-		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, "javafx.beans.property.WritableValue")) {
+		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, WritableValue.class.getName())) {
 			createSetterForPropertyValue(fieldNode, annotationNode, level);
 		}
 
@@ -266,7 +266,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public boolean isBooleanClass(JCExpression methodType) {
-		return methodType != null && methodType.toString().equals("java.lang.Boolean");
+		return methodType != null && methodType.toString().equals(Boolean.class.getName());
 	}
 
 	public boolean isGetterAnnotationPresent(JavacNode field) {
@@ -282,17 +282,20 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		Types typeUtil = Types.instance(node.getContext());
 		JCVariableDecl variableDecl = (JCVariableDecl) node.get();
 
-		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, "javafx.beans.property.ReadOnlyProperty") ||
-				isInheritedFromClass(typeUtil, variableDecl.vartype.type, "javafx.beans.property.StyleableProperty");
+		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, ReadOnlyProperty.class.getName()) ||
+				isInheritedFromClass(typeUtil, variableDecl.vartype.type, StyleableProperty.class.getName());
 	}
 
 	public boolean isInheritedFromClass(Types typesUtil, Type type, String clazz) {
+		if (implementsInterface(typesUtil, type, clazz)) return true;
+
 		Type superType = typesUtil.supertype(type);
-		if (superType != null ) {
+		if (superType.tsym != null ) {
 			return superType.tsym.flatName().toString().equals(clazz)
 					|| implementsInterface(typesUtil, type, clazz)
 					|| isInheritedFromClass(typesUtil, superType, clazz);
 		}
+
 		return false;
 	}
 
