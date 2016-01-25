@@ -3,9 +3,9 @@ package lombok.javac.handlers;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import javafx.beans.property.*;
-import javafx.beans.value.*;
-import javafx.css.*;
+import javafx.beans.property.ReadOnlyProperty;
+import javafx.beans.value.WritableValue;
+import javafx.css.StyleableProperty;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
@@ -111,7 +111,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, AccessLevel level) {
-		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 
 		String delegatingMethodName = "getValue";
@@ -250,8 +249,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 					if (resType.isParameterized()) {
 						List<Type> parameters = map.getParametersType(((ClassType) resType.tsym.type).typarams_field);
-						ClassType type = new ClassType(resType.getEnclosingType(), parameters, resType.tsym);
-						return type;
+						return new ClassType(resType.getEnclosingType(), parameters, resType.tsym);
 					}
 
 					return new ClassType(resType.getEnclosingType(), List.<Type>nil(), resType.tsym);
