@@ -23,7 +23,6 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
@@ -63,14 +62,17 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		public void mapParameters(ClassType type) {
 			if (!type.isParameterized()) return;
 
+		// init
 			List<Type> parameters = type.typarams_field;		// extract parameterized types (f.e.: String, Integer, ot E ...)
 			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field; // extract given types name (f.e.: E, T ...)
 			Map<Name, Type> map = new HashMap<Name, Type>();
 
+		// maps VarType to its Type that was set
 			if (parameters.length() == parametersVar.length()) {
 				for (int i = 0; i < parameters.length(); i++) {
 					Name varName = parametersVar.get(i).tsym.getSimpleName();
-					if (parameters.get(i) instanceof TypeVar) {							// if type parameter isn't class instance, look into the stored parameterMap for its ClassType
+					// if type parameter isn't class instance, look into the stored parameterMap for its ClassType
+					if (parameters.get(i) instanceof TypeVar) {
 						Name parameterName = parameters.get(i).tsym.getSimpleName();
 						if (parameterMap.containsKey(parameterName)) {
 							map.put(varName, parameterMap.get(parameterName));
@@ -81,10 +83,14 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 				}
 			}
 
+		// store new map
 			parameterMap = map;
 		}
 
-		public List<Type> convertToClassType(List<Type> types) {		// tries to get corresponding ClassTypes that were set to corresponded VarTypes
+		/**
+		 * Tries to get corresponding ClassTypes that were set to corresponded VarTypes.
+		 */
+		public List<Type> convertToClassType(List<Type> types) {
 			ListBuffer<Type> list = new ListBuffer<Type>();
 			for (Type type : types) {
 				Name key = type.tsym.getSimpleName();
@@ -116,7 +122,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			annotationNode.addError("@FXProperty isn't compatible with @Getter");
 			return;
 		}
-		AccessLevel level = annotation.getInstance().value();
+		long level = toJavacModifier(annotation.getInstance().value()) | (((JCVariableDecl) fieldNode.get()).mods.flags & Flags.STATIC);
+
 		createGetterForProperty(fieldNode, annotationNode, level);
 		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, WritableValue.class.getName())) {
 			createSetterForPropertyValue(fieldNode, annotationNode, level);
@@ -124,10 +131,10 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		createGetterForPropertyValue(fieldNode, annotationNode, level);
 	}
 
-	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, AccessLevel level) {
+	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, long level) {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		String delegatingMethodName = "getValue";
-		JCExpression methodType = treeMaker.Type(findType(field, delegatingMethodName));
+		JCExpression methodType = treeMaker.Type(findMethodType(field, delegatingMethodName));
 		String methodName = toGetterName(field, methodType);
 
 		if (methodName == null) {
@@ -144,7 +151,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		injectMethod(field.up(), methodDecl);
 	}
 
-	public void createGetterForProperty(JavacNode field, JavacNode annotationNode, AccessLevel level) {
+	public void createGetterForProperty(JavacNode field, JavacNode annotationNode, long level) {
 		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		HandleGetter handleGetter = new HandleGetter();
@@ -166,7 +173,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		injectMethod(field.up(), methodDecl);
 	}
 
-	public void createSetterForPropertyValue(JavacNode field, JavacNode annotationNode, AccessLevel level) {
+	public void createSetterForPropertyValue(JavacNode field, JavacNode annotationNode, long level) {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		boolean returnThis = shouldReturnThis(field);
 
@@ -183,7 +190,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 		Name argName = annotationNode.toName(makePropertyName(field));
 		List<JCExpression> args = List.<JCExpression>of(treeMaker.Ident(argName));
-		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, "this", field.getName(), delegatingMethodName), args);
+		String reciever = (((JCVariableDecl) field.get()).mods.flags & Flags.STATIC) == 0 ? "this" : field.up().getName();
+		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, reciever, field.getName(), delegatingMethodName), args);
 		ListBuffer<JCStatement> statements = new ListBuffer<JCStatement>().append(treeMaker.Exec(expression));
 
 		if (returnThis) {
@@ -192,7 +200,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		}
 
 		long flags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, annotationNode.getContext());
-		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), argName, treeMaker.Type(findType(field, "getValue")), null);
+		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), argName, treeMaker.Type(findMethodType(field, "getValue")), null);
 
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements.toList(), List.of(param));
 		if (methodDecl == null) return;
@@ -218,9 +226,9 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return false;
 	}
 
-	public JCMethodDecl createMethodDecl(AccessLevel level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
+	public JCMethodDecl createMethodDecl(long level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
-		return treeMaker.MethodDef(field.getTreeMaker().Modifiers(toJavacModifier(level)),
+		return treeMaker.MethodDef(treeMaker.Modifiers(level),
 									field.toName(methodName),
 									methodType,
 									List.<JCTypeParameter>nil(),
@@ -235,40 +243,48 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return List.<JCStatement>of(treeMaker.Return(expression));
 	}
 
-	public Type findType(JavacNode javacNode, String methodName) {	// tries to find type for method if it is implemented by node or its ancestors
+	/**
+	 * Tries to find type for method if it is implemented by node or its ancestors
+	 */
+	private Type findMethodType(JavacNode javacNode, String methodName) {
+	// init
 		Type resType;
 		Types types = Types.instance(javacNode.getContext());
 		JCVariableDecl variableDecl = (JCVariableDecl) javacNode.get();
 		TypeParameterMap map = new TypeParameterMap();
 		ClassType currentType = (ClassType) variableDecl.sym.type;
 
+	// search while parent not null
 		while (currentType != null) {
 			for (Symbol sym : currentType.tsym.getEnclosedElements()) {
-				if (sym.getSimpleName().toString().equals(methodName)) {
-					MethodType methodType = sym.asType().asMethodType();
-					if (methodType.getTypeArguments().length() != 0) continue;		// parameters number should be zero for this method
+				if (!sym.getSimpleName().toString().equals(methodName)) continue;
+				MethodType methodType = sym.asType().asMethodType();
 
-					resType = methodType.restype;
-					if (resType instanceof TypeVar) {
-						resType = map.getParameterType(resType);
-						if (resType == null) return methodType.restype;
-					}
-
-					if (resType instanceof TypeVar) return resType;					// if still has no ClassType parameter return the row TypeVar
-
-					if (resType.isParameterized()) {
-						List<Type> parameters = map.convertToClassType(((ClassType) resType.tsym.type).typarams_field);
-						return new ClassType(resType.getEnclosingType(), parameters, resType.tsym);
-					}
-
-					return new ClassType(resType.getEnclosingType(), List.<Type>nil(), resType.tsym);
+			// parameters number should be zero for this method
+				if (methodType.getTypeArguments().length() != 0) continue;
+				resType = methodType.restype;
+			// try to eject TypeVar Type, if can't return raw
+				if (resType instanceof TypeVar) {
+					resType = map.getParameterType(resType);
+					if (resType == null) return methodType.restype;
 				}
+			// if ejected Type still has no ClassType parameter return the row TypeVar
+				if (resType instanceof TypeVar) return resType;
+			// if Type parameterized eject its parameters
+				if (resType.isParameterized()) {
+					List<Type> parameters = map.convertToClassType(((ClassType) resType.tsym.type).typarams_field);
+					return new ClassType(resType.getEnclosingType(), parameters, resType.tsym);
+				}
+			// build type having its ClassType and Parameters
+				return new ClassType(resType.getEnclosingType(), List.<Type>nil(), resType.tsym);
 			}
 
+		// store map types to don't loose parameters type
 			currentType = (ClassType) types.supertype(currentType);
-			if (currentType.isParameterized()) map.mapParameters(currentType);		// store map types to don't loose parameters type
+			if (currentType.isParameterized()) map.mapParameters(currentType);
 		}
 
+	// if type wasn't found return null
 		return null;
 	}
 
@@ -303,9 +319,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	public boolean implementsInterface(Types typesUtil, Type type, String clazz) {
 		for (Type interfaceType : typesUtil.interfaces(type)) {
-			if (interfaceType.tsym.flatName().toString().equals(clazz)) return true;
-
-			if (implementsInterface(typesUtil, interfaceType, clazz)) return true;
+			if (interfaceType.tsym.flatName().toString().equals(clazz) || implementsInterface(typesUtil, interfaceType, clazz)) return true;
 		}
 		return false;
 	}
