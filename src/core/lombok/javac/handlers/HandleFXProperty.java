@@ -105,7 +105,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	public void handle(AnnotationValues<FXProperty> annotation, JCAnnotation ast, JavacNode annotationNode) {
 		deleteAnnotationIfNeccessary(annotationNode, FXProperty.class);
 		JavacNode fieldNode = annotationNode.up();
-
 		if (fieldNode == null || fieldNode.getKind() != Kind.FIELD) {
 			annotationNode.addError("@FXProperty is only supported on a field.");
 			return;
