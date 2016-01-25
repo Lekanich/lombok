@@ -18,6 +18,7 @@
 		<dependency org="org.projectlombok" name="lombok.patcher" rev="0.20" conf="buildBase->default; runtime->default" />
 		<dependency org="zwitserloot.com" name="cmdreader" rev="1.2" conf="buildBase->runtime; runtime" />
 		<dependency org="com.google.code.findbugs" name="annotations" rev="2.0.1" conf="buildBase->default; runtime->default"/>
+		<dependency org="net.java.openjfx.backport" name="openjfx-78-backport" rev="1.8.0-ea-b96.1" conf="buildBase->default; runtime->default"/>
 
 		<dependency org="junit" name="junit" rev="4.8.2" conf="test->default; contrib->sources" />
 		<dependency org="log4j" name="log4j" rev="1.2.16" conf="test->default; contrib->sources" />
@@ -27,6 +28,7 @@
 		<dependency org="org.slf4j" name="slf4j-ext" rev="1.6.1" conf="test->default; contrib->sources"/>
 		<dependency org="com.google.guava" name="guava" rev="18.0" conf="test->default; contrib->sources" />
 		<dependency org="com.google.code.findbugs" name="findbugs" rev="3.0.0" conf="test->master" />
+
 
 		<dependency org="com.googlecode.jarjar" name="jarjar" rev="1.1" conf="buildBase->default" />
 
