@@ -14,7 +14,6 @@ import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree.JCAnnotation;
-import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCReturn;
@@ -75,10 +74,10 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 						Name parameterName = parameters.get(i).tsym.getSimpleName();
 						if (parameterMap.containsKey(parameterName)) {
 							map.put(varName, parameterMap.get(parameterName));
+							continue;
 						}
-					} else {
-						map.put(varName, parameters.get(i));
 					}
+					map.put(varName, parameters.get(i));
 				}
 			}
 
@@ -221,28 +220,22 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	public JCMethodDecl createMethodDecl(AccessLevel level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
-		List<JCTypeParameter> methodGenericParams = List.nil();
-		List<JCExpression> throwsClauses = List.nil();
-		JCBlock methodBody = treeMaker.Block(0, statements);
-
-		return treeMaker.MethodDef(treeMaker.Modifiers(toJavacModifier(level)),
+		return treeMaker.MethodDef(field.getTreeMaker().Modifiers(toJavacModifier(level)),
 									field.toName(methodName),
 									methodType,
-									methodGenericParams,
+									List.<JCTypeParameter>nil(),
 									parameters,
-									throwsClauses,
-									methodBody,
+									List.<JCExpression>nil(),
+									treeMaker.Block(0, statements),
 									null);
 	}
 
 	public List<JCStatement> createMethodBody(JavacTreeMaker treeMaker, JavacNode field, String methodName) {
-
-		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(),
-				chainDots(field, field.getName(), methodName), List.<JCExpression>nil());
+		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), chainDots(field, field.getName(), methodName), List.<JCExpression>nil());
 		return List.<JCStatement>of(treeMaker.Return(expression));
 	}
 
-	public Type findType(JavacNode javacNode, String methodName) {	// tries to find type for method if it is implemented by node if its ancestors
+	public Type findType(JavacNode javacNode, String methodName) {	// tries to find type for method if it is implemented by node or its ancestors
 		Type resType;
 		Types types = Types.instance(javacNode.getContext());
 		JCVariableDecl variableDecl = (JCVariableDecl) javacNode.get();
@@ -258,7 +251,10 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 					resType = methodType.restype;
 					if (resType instanceof TypeVar) {
 						resType = map.getParameterType(resType);
+						if (resType == null) return methodType.restype;
 					}
+
+					if (resType instanceof TypeVar) return resType;					// if still has no ClassType parameter return the row TypeVar
 
 					if (resType.isParameterized()) {
 						List<Type> parameters = map.convertToClassType(((ClassType) resType.tsym.type).typarams_field);
