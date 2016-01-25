@@ -30,25 +30,41 @@ import lombok.javac.JavacNode;
 import lombok.javac.JavacTreeMaker;
 import org.mangosdk.spi.ProviderFor;
 import static lombok.javac.Javac.CTC_VOID;
-import static lombok.javac.handlers.JavacHandlerUtil.*;
+import static lombok.javac.handlers.JavacHandlerUtil.deleteAnnotationIfNeccessary;
+import static lombok.javac.handlers.JavacHandlerUtil.injectMethod;
+import static lombok.javac.handlers.JavacHandlerUtil.shouldReturnThis;
+import static lombok.javac.handlers.JavacHandlerUtil.cloneSelfType;
+import static lombok.javac.handlers.JavacHandlerUtil.toSetterName;
+import static lombok.javac.handlers.JavacHandlerUtil.toAllSetterNames;
+import static lombok.javac.handlers.JavacHandlerUtil.recursiveSetGeneratedBy;
+import static lombok.javac.handlers.JavacHandlerUtil.methodExists;
+import static lombok.javac.handlers.JavacHandlerUtil.toJavacModifier;
+import static lombok.javac.handlers.JavacHandlerUtil.chainDots;
+import static lombok.javac.handlers.JavacHandlerUtil.annotationTypeMatches;
+import static lombok.javac.handlers.JavacHandlerUtil.getAccessorsForField;
 
 
 @ProviderFor(JavacAnnotationHandler.class)
 public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
+	/**
+	 * For parameterized class builds map VarTypes to corresponded ClassTypes they were set.
+	 * f.e. for Property<Integer> will produced E to Integer map Entry.
+	 */
 	final private static class TypeParameterMap {
 		private Map<Name, Type> parameterMap = new HashMap<Name, Type>();
 
 		public void mapParameters(ClassType type) {
 			if (!type.isParameterized()) return;
-			List<Type> parameters = type.typarams_field;
-			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field;
+
+			List<Type> parameters = type.typarams_field;		// extract parameterized types (f.e.: String, Integer, ot E ...)
+			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field; // extract given types name (f.e.: E, T ...)
 			Map<Name, Type> map = new HashMap<Name, Type>();
 
 			if (parameters.length() == parametersVar.length()) {
-				for (int i = 0; i < parameters.length(); i ++) {
+				for (int i = 0; i < parameters.length(); i++) {
 					Name varName = parametersVar.get(i).tsym.getSimpleName();
-					if (parameters.get(i) instanceof TypeVar) {
+					if (parameters.get(i) instanceof TypeVar) {							// if type parameter isn't class instance, look into the stored parameterMap for its ClassType
 						Name parameterName = parameters.get(i).tsym.getSimpleName();
 						if (parameterMap.containsKey(parameterName)) {
 							map.put(varName, parameterMap.get(parameterName));
@@ -62,7 +78,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			parameterMap = map;
 		}
 
-		public List<Type> getParametersType(List<Type> types) {
+		public List<Type> convertToClassType(List<Type> types) {		// tries to get corresponding ClassTypes that were set to corresponded VarTypes
 			ListBuffer<Type> list = new ListBuffer<Type>();
 			for (Type type : types) {
 				Name key = type.tsym.getSimpleName();
@@ -81,38 +97,30 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	@Override
 	public void handle(AnnotationValues<FXProperty> annotation, JCAnnotation ast, JavacNode annotationNode) {
 		deleteAnnotationIfNeccessary(annotationNode, FXProperty.class);
-
 		JavacNode fieldNode = annotationNode.up();
 
 		if (fieldNode == null || fieldNode.getKind() != Kind.FIELD) {
 			annotationNode.addError("@FXProperty is only supported on a field.");
 			return;
 		}
-
 		if (!isProperty(fieldNode)) {
 			annotationNode.addError("@FXProperty is only supported on a FXProperties.");
 			return;
 		}
-
 		if (isGetterAnnotationPresent(fieldNode)) {
 			annotationNode.addError("@FXProperty isn't compatible with @Getter");
 			return;
 		}
-
 		AccessLevel level = annotation.getInstance().value();
-
 		createGetterForProperty(fieldNode, annotationNode, level);
-
 		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, WritableValue.class.getName())) {
 			createSetterForPropertyValue(fieldNode, annotationNode, level);
 		}
-
 		createGetterForPropertyValue(fieldNode, annotationNode, level);
 	}
 
 	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, AccessLevel level) {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
-
 		String delegatingMethodName = "getValue";
 		JCExpression methodType = treeMaker.Type(findType(field, delegatingMethodName));
 		String methodName = toGetterName(field, methodType);
@@ -228,27 +236,26 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return List.<JCStatement>of(treeMaker.Return(expression));
 	}
 
-	public Type findType(JavacNode javacNode, String methodName) {
+	public Type findType(JavacNode javacNode, String methodName) {	// tries to find type for method if it is implemented by node if its ancestors
 		Type resType;
 		Types types = Types.instance(javacNode.getContext());
 		JCVariableDecl variableDecl = (JCVariableDecl) javacNode.get();
 		TypeParameterMap map = new TypeParameterMap();
-
 		ClassType currentType = (ClassType) variableDecl.sym.type;
 
 		while (currentType != null) {
 			for (Symbol sym : currentType.tsym.getEnclosedElements()) {
 				if (sym.getSimpleName().toString().equals(methodName)) {
 					MethodType methodType = sym.asType().asMethodType();
-					if (methodType.getTypeArguments().length() != 0) continue;
-					resType = methodType.restype;
+					if (methodType.getTypeArguments().length() != 0) continue;		// parameters number should be zero for this method
 
+					resType = methodType.restype;
 					if (resType instanceof TypeVar) {
 						resType = map.getParameterType(resType);
 					}
 
 					if (resType.isParameterized()) {
-						List<Type> parameters = map.getParametersType(((ClassType) resType.tsym.type).typarams_field);
+						List<Type> parameters = map.convertToClassType(((ClassType) resType.tsym.type).typarams_field);
 						return new ClassType(resType.getEnclosingType(), parameters, resType.tsym);
 					}
 
@@ -257,7 +264,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			}
 
 			currentType = (ClassType) types.supertype(currentType);
-			if (currentType.isParameterized()) map.mapParameters(currentType);
+			if (currentType.isParameterized()) map.mapParameters(currentType);		// store map types to don't loose parameters type
 		}
 
 		return null;
@@ -269,9 +276,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	public boolean isGetterAnnotationPresent(JavacNode field) {
 		for (JavacNode node : field.down()) {
-			if (annotationTypeMatches(Getter.class, node)) {
-				return true;
-			}
+			if (annotationTypeMatches(Getter.class, node)) return true;
 		}
 		return false;
 	}
@@ -288,20 +293,16 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		if (implementsInterface(typesUtil, type, clazz)) return true;
 
 		Type superType = typesUtil.supertype(type);
-		if (superType.tsym != null ) {
-			return superType.tsym.flatName().toString().equals(clazz)
-					|| implementsInterface(typesUtil, type, clazz)
-					|| isInheritedFromClass(typesUtil, superType, clazz);
-		}
-
-		return false;
+		return superType.tsym != null
+				&& (superType.tsym.flatName().toString().equals(clazz)
+						|| implementsInterface(typesUtil, type, clazz)
+						|| isInheritedFromClass(typesUtil, superType, clazz));
 	}
 
 	public boolean implementsInterface(Types typesUtil, Type type, String clazz) {
 		for (Type interfaceType : typesUtil.interfaces(type)) {
-			if (interfaceType.tsym.flatName().toString().equals(clazz)) {
-				return true;
-			}
+			if (interfaceType.tsym.flatName().toString().equals(clazz)) return true;
+
 			if (implementsInterface(typesUtil, interfaceType, clazz)) return true;
 		}
 		return false;
@@ -317,10 +318,10 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	private String makePropertyName(JavacNode field) {
 		AnnotationValues<Accessors> accessors = JavacHandlerUtil.getAccessorsForField(field);
-
 		if (accessors == null || !accessors.isExplicit("prefix")) return field.getName();
 
 		java.util.List<String> prefix = Arrays.asList(accessors.getInstance().prefix());
-		return HandlerUtil.removePrefix(field.getName(), prefix).toString();
+		CharSequence name = HandlerUtil.removePrefix(field.getName(), prefix);
+		return name == null ? field.getName() : name.toString();
 	}
 }

@@ -1,30 +1,15 @@
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.BooleanPropertyBase;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ListProperty;
-import javafx.beans.property.MapProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.StringProperty;
-import javafx.collections.ObservableList;
-import javafx.collections.ObservableMap;
-
 class FXProperty {
-	BooleanProperty isNone;
-	BooleanPropertyBase isPrivate;
-	ObjectProperty<Boolean> isPackage;
-	ListProperty<Boolean> booleansList;
-	MapProperty<Boolean, Integer> mapPublic;
-	StringProperty noneString;
-	IntegerProperty privateInteger;
-	SimpleIntegerProperty packageInteger;
-	ReadOnlyBooleanProperty protectedReadOnlyBoolean;
+	javafx.beans.property.BooleanProperty isNone;
+	javafx.beans.property.BooleanPropertyBase isPrivate;
+	javafx.beans.property.ObjectProperty<Boolean> isPackage;
+	javafx.beans.property.ListProperty<Boolean> booleansList;
+	javafx.beans.property.MapProperty<Boolean, Integer> mapPublic;
+	javafx.beans.property.StringProperty noneString;
+	javafx.beans.property.IntegerProperty privateInteger;
+	javafx.beans.property.SimpleIntegerProperty packageInteger;
+	javafx.beans.property.ReadOnlyBooleanProperty protectedReadOnlyBoolean;
 
-	FXProperty() {
-	}
-
-	private BooleanProperty isNoneProperty() {
+	private javafx.beans.property.BooleanProperty isNoneProperty() {
 		return this.isNone;
 	}
 
@@ -36,7 +21,7 @@ class FXProperty {
 		return this.isNone.getValue();
 	}
 
-	private BooleanPropertyBase isPrivateProperty() {
+	private javafx.beans.property.BooleanPropertyBase isPrivateProperty() {
 		return this.isPrivate;
 	}
 
@@ -48,7 +33,7 @@ class FXProperty {
 		return this.isPrivate.getValue();
 	}
 
-	ObjectProperty<Boolean> isPackageProperty() {
+	javafx.beans.property.ObjectProperty<Boolean> isPackageProperty() {
 		return this.isPackage;
 	}
 
@@ -60,31 +45,31 @@ class FXProperty {
 		return (Boolean)this.isPackage.getValue();
 	}
 
-	protected ListProperty<Boolean> booleansListProperty() {
+	protected javafx.beans.property.ListProperty<Boolean> booleansListProperty() {
 		return this.booleansList;
 	}
 
-	protected void setBooleansList(ObservableList<Boolean> booleansList) {
+	protected void setBooleansList(javafx.collections.ObservableList<Boolean> booleansList) {
 		this.booleansList.setValue(booleansList);
 	}
 
-	protected ObservableList<Boolean> getBooleansList() {
+	protected javafx.collections.ObservableList<Boolean> getBooleansList() {
 		return this.booleansList.getValue();
 	}
 
-	public MapProperty<Boolean, Integer> mapPublicProperty() {
+	public javafx.beans.property.MapProperty<Boolean, Integer> mapPublicProperty() {
 		return this.mapPublic;
 	}
 
-	public void setMapPublic(ObservableMap<Boolean, Integer> mapPublic) {
+	public void setMapPublic(javafx.collections.ObservableMap<Boolean, Integer> mapPublic) {
 		this.mapPublic.setValue(mapPublic);
 	}
 
-	public ObservableMap<Boolean, Integer> getMapPublic() {
+	public javafx.collections.ObservableMap<Boolean, Integer> getMapPublic() {
 		return this.mapPublic.getValue();
 	}
 
-	private StringProperty noneStringProperty() {
+	private javafx.beans.property.StringProperty noneStringProperty() {
 		return this.noneString;
 	}
 
@@ -96,7 +81,7 @@ class FXProperty {
 		return this.noneString.getValue();
 	}
 
-	private IntegerProperty privateIntegerProperty() {
+	private javafx.beans.property.IntegerProperty privateIntegerProperty() {
 		return this.privateInteger;
 	}
 
@@ -108,7 +93,7 @@ class FXProperty {
 		return this.privateInteger.getValue();
 	}
 
-	SimpleIntegerProperty packageIntegerProperty() {
+	javafx.beans.property.SimpleIntegerProperty packageIntegerProperty() {
 		return this.packageInteger;
 	}
 
@@ -120,7 +105,7 @@ class FXProperty {
 		return this.packageInteger.getValue();
 	}
 
-	protected ReadOnlyBooleanProperty protectedReadOnlyBooleanProperty() {
+	protected javafx.beans.property.ReadOnlyBooleanProperty protectedReadOnlyBooleanProperty() {
 		return this.protectedReadOnlyBoolean;
 	}
 

@@ -6,8 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Adds methods and final modifier (optional)
- * have the appropriate access level modifier added.
+ * Adds methods and access level(optional).
  *
  *
  * @author Suburban Squirrel
