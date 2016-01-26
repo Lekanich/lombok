@@ -56,6 +56,9 @@ import static lombok.javac.handlers.JavacHandlerUtil.getAccessorsForField;
 @ProviderFor(JavacAnnotationHandler.class)
 @HandlerPriority(-1)
 public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
+	private static final String GET_VALUE = "getValue";
+	private static final String SET_VALUE = "setValue";
+	private static final String PROPERTY = "Property";
 
 	/**
 	 * For parameterized class builds map VarTypes to corresponded ClassTypes they were set.
@@ -68,8 +71,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			if (!type.isParameterized()) return;
 
 		// init
-			List<Type> parameters = type.typarams_field;		// extract parameterized types (f.e.: String, Integer, ot E ...)
-			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field; // extract given types name (f.e.: E, T ...)
+			List<Type> parameters = type.typarams_field;								// extract parameterized types (f.e.: String, Integer, ot E ...)
+			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field; 	// extract given types name (f.e.: E, T ...)
 			Map<Name, Type> map = new HashMap<Name, Type>();
 
 		// maps VarType to its Type that was set
@@ -77,7 +80,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 				for (int i = 0; i < parameters.length(); i++) {
 					Name varName = parametersVar.get(i).tsym.getSimpleName();
 
-					// -- if type parameter isn't class instance, look into the stored parameterMap for its ClassType
+				// -- if type parameter isn't class instance, look into the stored parameterMap for its ClassType
 					if (parameters.get(i) instanceof TypeVar) {
 						Name parameterName = parameters.get(i).tsym.getSimpleName();
 						if (parameterMap.containsKey(parameterName)) {
@@ -143,8 +146,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, long level) {
 	// init
 		JavacTreeMaker treeMaker = field.getTreeMaker();
-		String delegatingMethodName = "getValue";
-		JCExpression methodType = treeMaker.Type(findMethodType(field, delegatingMethodName));
+		JCExpression methodType = treeMaker.Type(findMethodType(field, GET_VALUE));
 		String methodName = toGetterName(field, methodType);
 
 	// check if method name hasn't generated or method with such signature exist
@@ -155,7 +157,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		if (methodExist(field, annotationNode, methodName, toAllGetterNames(field, methodType))) return;
 
 	// define method body and tries to build its declaration
-		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), chainDots(field, field.getName(), delegatingMethodName), List.<JCExpression>nil());
+		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), chainDots(field, field.getName(), GET_VALUE), List.<JCExpression>nil());
 		List<JCStatement> statements = List.<JCStatement>of(treeMaker.Return(expression));
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
 		if (methodDecl == null) return;
@@ -172,7 +174,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		HandleGetter handleGetter = new HandleGetter();
 		JCExpression methodType = handleGetter.copyType(treeMaker, (JCVariableDecl) field.get());
-		String methodName = makePropertyName(field) + "Property";
+		String methodName = makePropertyName(field) + PROPERTY;
 
 	// check if method with such signature exist
 		if (methodExist(field, annotationNode, methodName, List.of(methodName))) return;
@@ -195,7 +197,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		boolean returnThis = shouldReturnThis(field);
 		boolean isStatic = (((JCVariableDecl) field.get()).mods.flags & Flags.STATIC) == 0;
-		String delegatingMethodName = "setValue";
 		JCExpression methodType = returnThis ? cloneSelfType(field) : treeMaker.Type(Javac.createVoidType(treeMaker, CTC_VOID));
 		String methodName = toSetterName(field);
 
@@ -210,7 +211,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		Name argName = annotationNode.toName(makePropertyName(field));
 		List<JCExpression> args = List.<JCExpression>of(treeMaker.Ident(argName));
 		String receiver = isStatic ? "this" : field.up().getName();
-		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, receiver, field.getName(), delegatingMethodName), args);
+		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, receiver, field.getName(), SET_VALUE), args);
 		ListBuffer<JCStatement> statements = new ListBuffer<JCStatement>().append(treeMaker.Exec(expression));
 		if (returnThis && !isStatic) {
 			JCReturn returnStatement = treeMaker.Return(treeMaker.Ident(field.toName("this")));
@@ -219,7 +220,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	// define method body, its modifiers and parameters, and tries to build its declaration
 		long flags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, annotationNode.getContext());
-		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), argName, treeMaker.Type(findMethodType(field, "getValue")), null);
+		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), argName, treeMaker.Type(findMethodType(field, GET_VALUE)), null);
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements.toList(), List.of(param));
 		if (methodDecl == null) return;
 
@@ -245,11 +246,9 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return false;
 	}
 
-	public JCMethodDecl createMethodDecl(long level, JavacNode field, JCExpression methodType, String methodName,
-										 List<JCStatement> statements, List<JCVariableDecl> parameters) {
+	public JCMethodDecl createMethodDecl(long level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
-		return treeMaker.MethodDef(treeMaker.Modifiers(level), field.toName(methodName), methodType, List.<JCTypeParameter>nil(),
-				parameters, List.<JCExpression>nil(), treeMaker.Block(0, statements), null);
+		return treeMaker.MethodDef(treeMaker.Modifiers(level), field.toName(methodName), methodType, List.<JCTypeParameter>nil(), parameters, List.<JCExpression>nil(), treeMaker.Block(0, statements), null);
 	}
 
 	/**
@@ -321,8 +320,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		if (implementsInterface(typesUtil, type, clazz)) return true;
 
 		Type superType = typesUtil.supertype(type);
-		return superType.tsym != null
-				&& (superType.tsym.flatName().toString().equals(clazz)
+		return superType.tsym != null && (superType.tsym.flatName().toString().equals(clazz)
 						|| implementsInterface(typesUtil, type, clazz)
 						|| isInheritedFromClass(typesUtil, superType, clazz));
 	}
