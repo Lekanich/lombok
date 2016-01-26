@@ -11,6 +11,8 @@ class FXProperty {
 	javafx.beans.property.IntegerProperty privateInteger;
 	javafx.beans.property.SimpleIntegerProperty packageInteger;
 	javafx.beans.property.ReadOnlyBooleanProperty protectedReadOnlyBoolean;
+	CustomPropety<String> customProperty;
+	CustomCollectionProperty<String> customCollectionProperty;
 
 	@java.lang.SuppressWarnings("all")
 	@javax.annotation.Generated("lombok")
@@ -167,4 +169,46 @@ class FXProperty {
 	protected java.lang.Boolean isProtectedReadOnlyBoolean() {
 		return protectedReadOnlyBoolean.getValue();
 	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	protected CustomPropety<String> customPropertyProperty() {
+		return this.customProperty;
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	protected void setCustomProperty(final java.lang.String customProperty) {
+		this.customProperty.setValue(customProperty);
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	protected java.lang.String getCustomProperty() {
+		return customProperty.getValue();
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	protected CustomCollectionProperty<String> customCollectionPropertyProperty() {
+		return this.customCollectionProperty;
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	protected void setCustomCollectionProperty(final javafx.collections.ObservableList<java.lang.String> customCollectionProperty) {
+		this.customCollectionProperty.setValue(customCollectionProperty);
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	protected javafx.collections.ObservableList<java.lang.String> getCustomCollectionProperty() {
+		return customCollectionProperty.getValue();
+	}
+}
+class CustomPropety<T> extends javafx.beans.property.SimpleObjectProperty<T> {
+
+}
+class CustomCollectionProperty<C> extends javafx.beans.property.SimpleListProperty<C> {
+
 }

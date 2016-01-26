@@ -17,4 +17,11 @@ class FXProperty {
 	javafx.beans.property.SimpleIntegerProperty packageInteger;
 	@lombok.experimental.FXProperty(lombok.AccessLevel.PROTECTED)
 	javafx.beans.property.ReadOnlyBooleanProperty protectedReadOnlyBoolean;
+	@lombok.experimental.FXProperty(lombok.AccessLevel.PROTECTED)
+	CustomPropety<String> customProperty;
+	@lombok.experimental.FXProperty(lombok.AccessLevel.PROTECTED)
+	CustomCollectionProperty<String> customCollectionProperty;
 }
+
+class CustomPropety<T> extends javafx.beans.property.SimpleObjectProperty<T> {}
+class CustomCollectionProperty<C> extends javafx.beans.property.SimpleListProperty<C> {}
