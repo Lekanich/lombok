@@ -342,7 +342,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	private String makePropertyName(JavacNode field) {
 		AnnotationValues<Accessors> accessors = JavacHandlerUtil.getAccessorsForField(field);
-		if (accessors == null || !accessors.isExplicit("prefix")) return field.getName();
+		if (accessors == null || !accessors.isExplicit(PREFIX)) return field.getName();
 
 		java.util.List<String> prefix = Arrays.asList(accessors.getInstance().prefix());
 		CharSequence name = HandlerUtil.removePrefix(field.getName(), prefix);
