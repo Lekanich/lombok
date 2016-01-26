@@ -59,6 +59,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	private static final String GET_VALUE = "getValue";
 	private static final String SET_VALUE = "setValue";
 	private static final String PROPERTY = "Property";
+	private static final String PREFIX = "prefix";
 
 	/**
 	 * For parameterized class builds map VarTypes to corresponded ClassTypes they were set.
