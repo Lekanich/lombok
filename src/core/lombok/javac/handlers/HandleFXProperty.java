@@ -54,7 +54,7 @@ import static lombok.javac.handlers.JavacHandlerUtil.getAccessorsForField;
  * Handles the {@code lombok.experimental.Property} annotation for javac.
  */
 @ProviderFor(JavacAnnotationHandler.class)
-@HandlerPriority(-1)
+@HandlerPriority(-512)	// has to run before @Getter and @Data
 public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	private static final String GET_VALUE = "getValue";
 	private static final String SET_VALUE = "setValue";
@@ -229,7 +229,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public boolean methodExist(JavacNode fieldNode, JavacNode annotationNode, String methodName, java.util.List<String> altNameList) {
-
 		for (String altName : altNameList) {
 			switch (methodExists(altName, fieldNode, false, 0)) {
 				case EXISTS_BY_LOMBOK:
@@ -237,8 +236,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 				case EXISTS_BY_USER:
 					String altNameExpl = "";
 					if (!altName.equals(methodName)) altNameExpl = String.format(" (%s)", altName);
-					annotationNode.addWarning(
-							String.format("Not generating %s(): A method with that name already exists%s", methodName, altNameExpl));
+
+					annotationNode.addWarning(String.format("Not generating %s(): A method with that name already exists%s", methodName, altNameExpl));
 					return true;
 			}
 		}
@@ -266,18 +265,18 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		while (currentType != null) {
 			for (Symbol sym : currentType.tsym.getEnclosedElements()) {
 				if (!sym.getSimpleName().toString().equals(methodName)) continue;
-				MethodType methodType = sym.asType().asMethodType();
 
 			// -- parameters number should be zero for this method
+				MethodType methodType = sym.asType().asMethodType();
 				if (methodType.getTypeArguments().length() != 0) continue;
-				resType = methodType.restype;
 
 			// -- try to eject TypeVar Type, if can't return raw
+				resType = methodType.restype;
 				if (resType instanceof TypeVar) {
 					resType = map.getParameterType(resType);
 					if (resType == null) return methodType.restype;
 				}
-				if (resType instanceof TypeVar) return resType;		// if ejected Type still has no ClassType parameter return the row TypeVar
+				if (resType instanceof TypeVar) return resType;						// if ejected Type still has no ClassType parameter return the row TypeVar
 
 			// -- if Type parameterized eject its parameters
 				if (resType.isParameterized()) {
