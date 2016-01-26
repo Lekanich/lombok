@@ -51,7 +51,7 @@ import static lombok.javac.handlers.JavacHandlerUtil.getAccessorsForField;
 
 
 /**
- * Handles the {@code lombok.experimental.Property} annotation for javac.
+ * Handles the {@code lombok.experimental.FXProperty} annotation for javac.
  */
 @ProviderFor(JavacAnnotationHandler.class)
 @HandlerPriority(-512)	// has to run before @Getter and @Data
