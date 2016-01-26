@@ -71,8 +71,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			if (!type.isParameterized()) return;
 
 		// init
-			List<Type> parameters = type.typarams_field;								// extract parameterized types (f.e.: String, Integer, ot E ...)
-			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field; 	// extract given types name (f.e.: E, T ...)
+			List<Type> parameters = type.typarams_field;									// extract parameterized types (f.e.: String, Integer, or E ...)
+			List<Type> parametersVar = ((ClassType) type.tsym.type).typarams_field;			// extract given types name (f.e.: E, T ...)
 			Map<Name, Type> map = new HashMap<Name, Type>();
 
 		// maps VarType to its Type that was set
@@ -131,8 +131,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			annotationNode.addError("@FXProperty isn't compatible with @Getter");
 			return;
 		}
-		long level = toJavacModifier(annotation.getInstance().value()) | (((JCVariableDecl) fieldNode.get()).mods.flags & Flags.STATIC);
 
+		long level = toJavacModifier(annotation.getInstance().value()) | (((JCVariableDecl) fieldNode.get()).mods.flags & Flags.STATIC);
 		createGetterForProperty(fieldNode, annotationNode, level);
 		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, WritableValue.class.getName())) {
 			createSetterForPropertyValue(fieldNode, annotationNode, level);
@@ -200,14 +200,14 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		JCExpression methodType = returnThis ? cloneSelfType(field) : treeMaker.Type(Javac.createVoidType(treeMaker, CTC_VOID));
 		String methodName = toSetterName(field);
 
-	// check if method name hasn't generated or method with such signature exist
+	// checks if method name hasn't generated or method with such signature exist
 		if (methodName == null) {
 			annotationNode.addWarning("Not generating setter for this field: It does not fit your @Accessors prefix list.");
 			return;
 		}
 		if (methodExist(field, annotationNode, methodName, toAllSetterNames(field))) return;
 
-	// create expressions, their types and args and for method body
+	// creates expressions, their types and args for method body
 		Name argName = annotationNode.toName(makePropertyName(field));
 		List<JCExpression> args = List.<JCExpression>of(treeMaker.Ident(argName));
 		String receiver = isStatic ? "this" : field.up().getName();
@@ -224,7 +224,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements.toList(), List.of(param));
 		if (methodDecl == null) return;
 
-	// create method if its method declaration building was successful
+	// creates method if its method declaration building was successful
 		injectMethod(field.up(), recursiveSetGeneratedBy(methodDecl, annotationNode.get(), annotationNode.getContext()));
 	}
 
@@ -251,7 +251,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	/**
-	 * Tries to find type for method with 0 args if it is implemented by node or its ancestors and
+	 * Tries to find type for method with 0 args if it is implemented by node or its ancestors
 	 */
 	private Type findMethodType(JavacNode javacNode, String methodName) {
 	// init
@@ -266,11 +266,11 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			for (Symbol sym : currentType.tsym.getEnclosedElements()) {
 				if (!sym.getSimpleName().toString().equals(methodName)) continue;
 
-			// -- parameters number should be zero for this method
+			// -- gets methods and checks its parameters number
 				MethodType methodType = sym.asType().asMethodType();
 				if (methodType.getTypeArguments().length() != 0) continue;
 
-			// -- try to eject TypeVar Type, if can't return raw
+			// -- tries to eject TypeVar Type, if can't return raw
 				resType = methodType.restype;
 				if (resType instanceof TypeVar) {
 					resType = map.getParameterType(resType);
@@ -278,22 +278,22 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 				}
 				if (resType instanceof TypeVar) return resType;						// if ejected Type still has no ClassType parameter return the row TypeVar
 
-			// -- if Type parameterized eject its parameters
+			// -- if Type parameterized ejects its parameters
 				if (resType.isParameterized()) {
 					List<Type> parameters = map.convertToClassType(((ClassType) resType.tsym.type).typarams_field);
 					return new ClassType(resType.getEnclosingType(), parameters, resType.tsym);
 				}
 
-			// -- build type having its ClassType and Parameters
+			// -- builds type having its ClassType and Parameters
 				return new ClassType(resType.getEnclosingType(), List.<Type>nil(), resType.tsym);
 			}
 
-		// - store map types to don't loose parameters type
+		// - stores map types to don't loose parameters type
 			currentType = (ClassType) types.supertype(currentType);
 			if (currentType.isParameterized()) map.mapParameters(currentType);
 		}
 
-	// if type wasn't found return null
+	// if type wasn't found returns null
 		return null;
 	}
 
