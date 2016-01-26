@@ -26,6 +26,7 @@ import com.sun.tools.javac.util.Name;
 import lombok.Getter;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
+import lombok.core.HandlerPriority;
 import lombok.core.handlers.HandlerUtil;
 import lombok.experimental.Accessors;
 import lombok.experimental.FXProperty;
@@ -49,12 +50,16 @@ import static lombok.javac.handlers.JavacHandlerUtil.annotationTypeMatches;
 import static lombok.javac.handlers.JavacHandlerUtil.getAccessorsForField;
 
 
+/**
+ * Handles the {@code lombok.experimental.Property} annotation for javac.
+ */
 @ProviderFor(JavacAnnotationHandler.class)
+@HandlerPriority(-1)
 public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	/**
 	 * For parameterized class builds map VarTypes to corresponded ClassTypes they were set.
-	 * f.e. for Property<Integer> will produced E to Integer map Entry.
+	 * f.e.: for Property<Integer> will produced T to Integer map Entry.
 	 */
 	final private static class TypeParameterMap {
 		private Map<Name, Type> parameterMap = new HashMap<Name, Type>();
@@ -71,7 +76,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			if (parameters.length() == parametersVar.length()) {
 				for (int i = 0; i < parameters.length(); i++) {
 					Name varName = parametersVar.get(i).tsym.getSimpleName();
-					// if type parameter isn't class instance, look into the stored parameterMap for its ClassType
+
+					// -- if type parameter isn't class instance, look into the stored parameterMap for its ClassType
 					if (parameters.get(i) instanceof TypeVar) {
 						Name parameterName = parameters.get(i).tsym.getSimpleName();
 						if (parameterMap.containsKey(parameterName)) {
@@ -88,7 +94,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		}
 
 		/**
-		 * Tries to get corresponding ClassTypes that were set to corresponded VarTypes.
+		 * Tries to get ClassTypes that were set to corresponded VarTypes.
 		 */
 		public List<Type> convertToClassType(List<Type> types) {
 			ListBuffer<Type> list = new ListBuffer<Type>();
@@ -131,80 +137,93 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		createGetterForPropertyValue(fieldNode, annotationNode, level);
 	}
 
+	/**
+	 * Generates getter for property, calling getValue() implementation of property field
+	 */
 	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, long level) {
+	// init
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		String delegatingMethodName = "getValue";
 		JCExpression methodType = treeMaker.Type(findMethodType(field, delegatingMethodName));
 		String methodName = toGetterName(field, methodType);
 
+	// check if method name hasn't generated or method with such signature exist
 		if (methodName == null) {
 			annotationNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");
 			return;
 		}
-
 		if (methodExist(field, annotationNode, methodName, toAllGetterNames(field, methodType))) return;
 
-		List<JCStatement> statements = createMethodBody(treeMaker, field, delegatingMethodName);
+	// define method body and tries to build its declaration
+		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), chainDots(field, field.getName(), delegatingMethodName), List.<JCExpression>nil());
+		List<JCStatement> statements = List.<JCStatement>of(treeMaker.Return(expression));
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
 		if (methodDecl == null) return;
 
+	// create method if its declaration building was successful
 		injectMethod(field.up(), methodDecl);
 	}
 
+	/**
+	 * Returns property field itself
+	 */
 	public void createGetterForProperty(JavacNode field, JavacNode annotationNode, long level) {
-		JCVariableDecl fieldDecl = (JCVariableDecl) field.get();
+	// init
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		HandleGetter handleGetter = new HandleGetter();
-
-		JCExpression methodType = handleGetter.copyType(treeMaker, fieldDecl);
+		JCExpression methodType = handleGetter.copyType(treeMaker, (JCVariableDecl) field.get());
 		String methodName = makePropertyName(field) + "Property";
 
-		if (methodName == null) {
-			annotationNode.addWarning("Not generating getter for this field: It does not fit your @Accessors prefix list.");
-			return;
-		}
-
+	// check if method with such signature exist
 		if (methodExist(field, annotationNode, methodName, List.of(methodName))) return;
 
+	// define method body and tries to build its declaration
 		List<JCStatement> statements = handleGetter.createSimpleGetterBody(treeMaker, field);
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
 		if (methodDecl == null) return;
 
+	// create method if its declaration building was successful
 		injectMethod(field.up(), methodDecl);
 	}
 
+	/**
+	 * Generates getter for property, calling setValue(type propertyName) implementation of property field
+	 * where the type is the type returned by getter
+	 */
 	public void createSetterForPropertyValue(JavacNode field, JavacNode annotationNode, long level) {
+	// init
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		boolean returnThis = shouldReturnThis(field);
-
+		boolean isStatic = (((JCVariableDecl) field.get()).mods.flags & Flags.STATIC) == 0;
 		String delegatingMethodName = "setValue";
 		JCExpression methodType = returnThis ? cloneSelfType(field) : treeMaker.Type(Javac.createVoidType(treeMaker, CTC_VOID));
 		String methodName = toSetterName(field);
 
+	// check if method name hasn't generated or method with such signature exist
 		if (methodName == null) {
 			annotationNode.addWarning("Not generating setter for this field: It does not fit your @Accessors prefix list.");
 			return;
 		}
-
 		if (methodExist(field, annotationNode, methodName, toAllSetterNames(field))) return;
 
+	// create expressions, their types and args and for method body
 		Name argName = annotationNode.toName(makePropertyName(field));
 		List<JCExpression> args = List.<JCExpression>of(treeMaker.Ident(argName));
-		String reciever = (((JCVariableDecl) field.get()).mods.flags & Flags.STATIC) == 0 ? "this" : field.up().getName();
-		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, reciever, field.getName(), delegatingMethodName), args);
+		String receiver = isStatic ? "this" : field.up().getName();
+		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, receiver, field.getName(), delegatingMethodName), args);
 		ListBuffer<JCStatement> statements = new ListBuffer<JCStatement>().append(treeMaker.Exec(expression));
-
-		if (returnThis) {
+		if (returnThis && !isStatic) {
 			JCReturn returnStatement = treeMaker.Return(treeMaker.Ident(field.toName("this")));
 			statements.append(returnStatement);
 		}
 
+	// define method body, its modifiers and parameters, and tries to build its declaration
 		long flags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, annotationNode.getContext());
 		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), argName, treeMaker.Type(findMethodType(field, "getValue")), null);
-
 		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements.toList(), List.of(param));
 		if (methodDecl == null) return;
 
+	// create method if its method declaration building was successful
 		injectMethod(field.up(), recursiveSetGeneratedBy(methodDecl, annotationNode.get(), annotationNode.getContext()));
 	}
 
@@ -226,25 +245,15 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return false;
 	}
 
-	public JCMethodDecl createMethodDecl(long level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
+	public JCMethodDecl createMethodDecl(long level, JavacNode field, JCExpression methodType, String methodName,
+										 List<JCStatement> statements, List<JCVariableDecl> parameters) {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
-		return treeMaker.MethodDef(treeMaker.Modifiers(level),
-									field.toName(methodName),
-									methodType,
-									List.<JCTypeParameter>nil(),
-									parameters,
-									List.<JCExpression>nil(),
-									treeMaker.Block(0, statements),
-									null);
-	}
-
-	public List<JCStatement> createMethodBody(JavacTreeMaker treeMaker, JavacNode field, String methodName) {
-		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), chainDots(field, field.getName(), methodName), List.<JCExpression>nil());
-		return List.<JCStatement>of(treeMaker.Return(expression));
+		return treeMaker.MethodDef(treeMaker.Modifiers(level), field.toName(methodName), methodType, List.<JCTypeParameter>nil(),
+				parameters, List.<JCExpression>nil(), treeMaker.Block(0, statements), null);
 	}
 
 	/**
-	 * Tries to find type for method if it is implemented by node or its ancestors
+	 * Tries to find type for method with 0 args if it is implemented by node or its ancestors and
 	 */
 	private Type findMethodType(JavacNode javacNode, String methodName) {
 	// init
@@ -260,26 +269,28 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 				if (!sym.getSimpleName().toString().equals(methodName)) continue;
 				MethodType methodType = sym.asType().asMethodType();
 
-			// parameters number should be zero for this method
+			// -- parameters number should be zero for this method
 				if (methodType.getTypeArguments().length() != 0) continue;
 				resType = methodType.restype;
-			// try to eject TypeVar Type, if can't return raw
+
+			// -- try to eject TypeVar Type, if can't return raw
 				if (resType instanceof TypeVar) {
 					resType = map.getParameterType(resType);
 					if (resType == null) return methodType.restype;
 				}
-			// if ejected Type still has no ClassType parameter return the row TypeVar
-				if (resType instanceof TypeVar) return resType;
-			// if Type parameterized eject its parameters
+				if (resType instanceof TypeVar) return resType;		// if ejected Type still has no ClassType parameter return the row TypeVar
+
+			// -- if Type parameterized eject its parameters
 				if (resType.isParameterized()) {
 					List<Type> parameters = map.convertToClassType(((ClassType) resType.tsym.type).typarams_field);
 					return new ClassType(resType.getEnclosingType(), parameters, resType.tsym);
 				}
-			// build type having its ClassType and Parameters
+
+			// -- build type having its ClassType and Parameters
 				return new ClassType(resType.getEnclosingType(), List.<Type>nil(), resType.tsym);
 			}
 
-		// store map types to don't loose parameters type
+		// - store map types to don't loose parameters type
 			currentType = (ClassType) types.supertype(currentType);
 			if (currentType.isParameterized()) map.mapParameters(currentType);
 		}
@@ -302,7 +313,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	public boolean isProperty(JavacNode node) {
 		Types typeUtil = Types.instance(node.getContext());
 		JCVariableDecl variableDecl = (JCVariableDecl) node.get();
-
 		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, ReadOnlyProperty.class.getName()) ||
 				isInheritedFromClass(typeUtil, variableDecl.vartype.type, StyleableProperty.class.getName());
 	}
