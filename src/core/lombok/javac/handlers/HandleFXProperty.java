@@ -178,9 +178,14 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		HandleGetter handleGetter = new HandleGetter();
 		JCExpression methodType = handleGetter.copyType(treeMaker, (JCVariableDecl) field.get());
-		String methodName = makePropertyName(field) + PROPERTY;
+		String methodName = makePropertyName(field);
 
-	// check if method with such signature exist
+	// check if method with such signature exist or can generate method name
+		if (methodName == null) {
+			annotationNode.addWarning("Not generating accessor for this field: It does not fit your @Accessors prefix list.");
+			return;
+		}
+		methodName += PROPERTY;
 		if (methodExist(field, annotationNode, methodName, List.of(methodName))) return;
 
 	// define method body and tries to build its declaration
@@ -349,6 +354,6 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 		java.util.List<String> prefix = Arrays.asList(accessors.getInstance().prefix());
 		CharSequence name = HandlerUtil.removePrefix(field.getName(), prefix);
-		return name == null ? field.getName() : name.toString();
+		return name == null ? null : name.toString();
 	}
 }

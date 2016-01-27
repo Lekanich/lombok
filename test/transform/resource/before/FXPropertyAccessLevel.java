@@ -1,4 +1,4 @@
-class FXProperty {
+class FXPropertyAccessLevel {
 	@lombok.experimental.FXProperty(lombok.AccessLevel.NONE)
 	javafx.beans.property.BooleanProperty isNone;
 	@lombok.experimental.FXProperty(lombok.AccessLevel.PRIVATE)

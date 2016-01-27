@@ -1,6 +1,6 @@
 
 
-class FXProperty {
+class FXPropertyAccessLevel {
 
 	javafx.beans.property.BooleanProperty isNone;
 	javafx.beans.property.BooleanPropertyBase isPrivate;
