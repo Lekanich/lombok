@@ -1,0 +1,3 @@
+5 @FXProperty isn't compatible with @Getter
+10 @FXProperty is only supported on a FXProperties
+15 @FXProperty is only supported on a FXProperties
