@@ -163,7 +163,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	// define method body and tries to build its declaration
 		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), chainDots(field, field.getName(), GET_VALUE), List.<JCExpression>nil());
 		List<JCStatement> statements = List.<JCStatement>of(treeMaker.Return(expression));
-		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
+		JCMethodDecl methodDecl = createMethodDecl(treeMaker, level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
 		if (methodDecl == null) return;
 
 	// create method if its declaration building was successful
@@ -189,7 +189,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 
 	// define method body and tries to build its declaration
 		List<JCStatement> statements = handleGetter.createSimpleGetterBody(treeMaker, field);
-		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
+		JCMethodDecl methodDecl = createMethodDecl(treeMaker, level, field, methodType, methodName, statements, List.<JCVariableDecl>nil());
 		if (methodDecl == null) return;
 
 	// create method if its declaration building was successful
@@ -228,7 +228,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	// define method body, its modifiers and parameters, and tries to build its declaration
 		long flags = JavacHandlerUtil.addFinalIfNeeded(Flags.PARAMETER, annotationNode.getContext());
 		JCVariableDecl param = treeMaker.VarDef(treeMaker.Modifiers(flags), argName, treeMaker.Type(findMethodType(field, GET_VALUE)), null);
-		JCMethodDecl methodDecl = createMethodDecl(level, field, methodType, methodName, statements.toList(), List.of(param));
+		JCMethodDecl methodDecl = createMethodDecl(treeMaker, level, field, methodType, methodName, statements.toList(), List.of(param));
 		if (methodDecl == null) return;
 
 	// creates method if its method declaration building was successful
@@ -252,8 +252,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		return false;
 	}
 
-	public JCMethodDecl createMethodDecl(long level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
-		JavacTreeMaker treeMaker = field.getTreeMaker();
+	public JCMethodDecl createMethodDecl(JavacTreeMaker treeMaker, long level, JavacNode field, JCExpression methodType, String methodName, List<JCStatement> statements, List<JCVariableDecl> parameters) {
 		return treeMaker.MethodDef(treeMaker.Modifiers(level), field.toName(methodName), methodType, List.<JCTypeParameter>nil(), parameters, List.<JCExpression>nil(), treeMaker.Block(0, statements), null);
 	}
 
@@ -318,8 +317,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	public boolean isProperty(JavacNode node) {
 		Types typeUtil = Types.instance(node.getContext());
 		JCVariableDecl variableDecl = (JCVariableDecl) node.get();
-		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, ReadOnlyProperty.class.getName()) ||
-				isInheritedFromClass(typeUtil, variableDecl.vartype.type, StyleableProperty.class.getName());
+		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, ReadOnlyProperty.class.getName()) || isInheritedFromClass(typeUtil, variableDecl.vartype.type, StyleableProperty.class.getName());
 	}
 
 	public boolean isInheritedFromClass(Types typesUtil, Type type, String clazz) {
