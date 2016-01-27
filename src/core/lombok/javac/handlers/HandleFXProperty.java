@@ -136,20 +136,20 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 		AccessLevel accessLevel = annotation.getInstance().value();
 		if (accessLevel == AccessLevel.NONE) return;
 
+		JavacTreeMaker treeMaker = fieldNode.getTreeMaker();
 		long level = toJavacModifier(accessLevel) | (((JCVariableDecl) fieldNode.get()).mods.flags & Flags.STATIC);
-		createGetterForProperty(fieldNode, annotationNode, level);
+		createGetterForProperty(fieldNode, annotationNode, treeMaker, level);
 		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, WritableValue.class.getName())) {
-			createSetterForPropertyValue(fieldNode, annotationNode, level);
+			createSetterForPropertyValue(fieldNode, annotationNode, treeMaker, level);
 		}
-		createGetterForPropertyValue(fieldNode, annotationNode, level);
+		createGetterForPropertyValue(fieldNode, annotationNode, treeMaker, level);
 	}
 
 	/**
 	 * Generates getter for property, calling getValue() implementation of property field
 	 */
-	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, long level) {
+	public void createGetterForPropertyValue(JavacNode field, JavacNode annotationNode, JavacTreeMaker treeMaker, long level) {
 	// init
-		JavacTreeMaker treeMaker = field.getTreeMaker();
 		JCExpression methodType = treeMaker.Type(findMethodType(field, GET_VALUE));
 		String methodName = toGetterName(field, methodType);
 
@@ -173,9 +173,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	/**
 	 * Returns property field itself
 	 */
-	public void createGetterForProperty(JavacNode field, JavacNode annotationNode, long level) {
+	public void createGetterForProperty(JavacNode field, JavacNode annotationNode, JavacTreeMaker treeMaker, long level) {
 	// init
-		JavacTreeMaker treeMaker = field.getTreeMaker();
 		HandleGetter handleGetter = new HandleGetter();
 		JCExpression methodType = handleGetter.copyType(treeMaker, (JCVariableDecl) field.get());
 		String methodName = makePropertyName(field);
@@ -201,9 +200,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	 * Generates getter for property, calling setValue(type propertyName) implementation of property field
 	 * where the type is the type returned by getter
 	 */
-	public void createSetterForPropertyValue(JavacNode field, JavacNode annotationNode, long level) {
+	public void createSetterForPropertyValue(JavacNode field, JavacNode annotationNode, JavacTreeMaker treeMaker, long level) {
 	// init
-		JavacTreeMaker treeMaker = field.getTreeMaker();
 		boolean returnThis = shouldReturnThis(field);
 		boolean isStatic = (((JCVariableDecl) field.get()).mods.flags & Flags.STATIC) != 0;
 		JCExpression methodType = returnThis ? cloneSelfType(field) : treeMaker.Type(Javac.createVoidType(treeMaker, CTC_VOID));
