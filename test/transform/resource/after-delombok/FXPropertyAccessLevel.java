@@ -13,6 +13,7 @@ class FXPropertyAccessLevel {
 	javafx.beans.property.ReadOnlyBooleanProperty protectedReadOnlyBoolean;
 	CustomPropety<String> customProperty;
 	CustomCollectionProperty<String> customCollectionProperty;
+	javafx.css.StyleableBooleanProperty publicStyleableProperty;
 
 	@java.lang.SuppressWarnings("all")
 	@javax.annotation.Generated("lombok")
@@ -168,6 +169,24 @@ class FXPropertyAccessLevel {
 	@javax.annotation.Generated("lombok")
 	protected javafx.collections.ObservableList<java.lang.String> getCustomCollectionProperty() {
 		return customCollectionProperty.getValue();
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	public javafx.css.StyleableBooleanProperty publicStyleablePropertyProperty() {
+		return this.publicStyleableProperty;
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	public void setPublicStyleableProperty(final java.lang.Boolean publicStyleableProperty) {
+		this.publicStyleableProperty.setValue(publicStyleableProperty);
+	}
+
+	@java.lang.SuppressWarnings("all")
+	@javax.annotation.Generated("lombok")
+	public java.lang.Boolean isPublicStyleableProperty() {
+		return publicStyleableProperty.getValue();
 	}
 }
 class CustomPropety<T> extends javafx.beans.property.SimpleObjectProperty<T> {

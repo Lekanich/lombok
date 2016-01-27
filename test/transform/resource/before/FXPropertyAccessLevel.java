@@ -21,6 +21,8 @@ class FXPropertyAccessLevel {
 	CustomPropety<String> customProperty;
 	@lombok.experimental.FXProperty(lombok.AccessLevel.PROTECTED)
 	CustomCollectionProperty<String> customCollectionProperty;
+	@lombok.experimental.FXProperty(lombok.AccessLevel.PUBLIC)
+	javafx.css.StyleableBooleanProperty publicStyleableProperty;
 }
 
 class CustomPropety<T> extends javafx.beans.property.SimpleObjectProperty<T> {}
