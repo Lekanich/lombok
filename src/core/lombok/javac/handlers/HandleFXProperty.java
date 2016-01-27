@@ -200,7 +200,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	// init
 		JavacTreeMaker treeMaker = field.getTreeMaker();
 		boolean returnThis = shouldReturnThis(field);
-		boolean isStatic = (((JCVariableDecl) field.get()).mods.flags & Flags.STATIC) == 0;
+		boolean isStatic = (((JCVariableDecl) field.get()).mods.flags & Flags.STATIC) != 0;
 		JCExpression methodType = returnThis ? cloneSelfType(field) : treeMaker.Type(Javac.createVoidType(treeMaker, CTC_VOID));
 		String methodName = toSetterName(field);
 
@@ -214,7 +214,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	// creates expressions, their types and args for method body
 		Name argName = annotationNode.toName(makePropertyName(field));
 		List<JCExpression> args = List.<JCExpression>of(treeMaker.Ident(argName));
-		String receiver = isStatic ? "this" : field.up().getName();
+		String receiver = isStatic ? field.up().getName() : "this";
 		JCExpression expression = treeMaker.Apply(List.<JCExpression>nil(), JavacHandlerUtil.chainDots(field, receiver, field.getName(), SET_VALUE), args);
 		ListBuffer<JCStatement> statements = new ListBuffer<JCStatement>().append(treeMaker.Exec(expression));
 		if (returnThis && !isStatic) {
