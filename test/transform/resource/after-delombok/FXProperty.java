@@ -16,24 +16,6 @@ class FXProperty {
 
 	@java.lang.SuppressWarnings("all")
 	@javax.annotation.Generated("lombok")
-	private javafx.beans.property.BooleanProperty isNoneProperty() {
-		return this.isNone;
-	}
-
-	@java.lang.SuppressWarnings("all")
-	@javax.annotation.Generated("lombok")
-	private void setIsNone(final java.lang.Boolean isNone) {
-		this.isNone.setValue(isNone);
-	}
-
-	@java.lang.SuppressWarnings("all")
-	@javax.annotation.Generated("lombok")
-	private java.lang.Boolean isNone() {
-		return isNone.getValue();
-	}
-
-	@java.lang.SuppressWarnings("all")
-	@javax.annotation.Generated("lombok")
 	private javafx.beans.property.BooleanPropertyBase isPrivateProperty() {
 		return this.isPrivate;
 	}
@@ -102,24 +84,6 @@ class FXProperty {
 	@javax.annotation.Generated("lombok")
 	public javafx.collections.ObservableMap<java.lang.Boolean, java.lang.Integer> getMapPublic() {
 		return mapPublic.getValue();
-	}
-
-	@java.lang.SuppressWarnings("all")
-	@javax.annotation.Generated("lombok")
-	private javafx.beans.property.StringProperty noneStringProperty() {
-		return this.noneString;
-	}
-
-	@java.lang.SuppressWarnings("all")
-	@javax.annotation.Generated("lombok")
-	private void setNoneString(final java.lang.String noneString) {
-		this.noneString.setValue(noneString);
-	}
-
-	@java.lang.SuppressWarnings("all")
-	@javax.annotation.Generated("lombok")
-	private java.lang.String getNoneString() {
-		return noneString.getValue();
 	}
 
 	@java.lang.SuppressWarnings("all")

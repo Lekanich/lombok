@@ -23,6 +23,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.core.AST.Kind;
 import lombok.core.AnnotationValues;
@@ -132,8 +133,10 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 			annotationNode.addError("@FXProperty isn't compatible with @Getter");
 			return;
 		}
+		AccessLevel accessLevel = annotation.getInstance().value();
+		if (accessLevel == AccessLevel.NONE) return;
 
-		long level = toJavacModifier(annotation.getInstance().value()) | (((JCVariableDecl) fieldNode.get()).mods.flags & Flags.STATIC);
+		long level = toJavacModifier(accessLevel) | (((JCVariableDecl) fieldNode.get()).mods.flags & Flags.STATIC);
 		createGetterForProperty(fieldNode, annotationNode, level);
 		if (isInheritedFromClass(Types.instance(fieldNode.getContext()), ((JCVariableDecl) fieldNode.get()).vartype.type, WritableValue.class.getName())) {
 			createSetterForPropertyValue(fieldNode, annotationNode, level);
