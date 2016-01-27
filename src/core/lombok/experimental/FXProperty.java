@@ -9,6 +9,8 @@ import lombok.AccessLevel;
 
 /**
  * Adds methods and access level(optional).
+ * Can by specified only on fields which types inherited from or implement javafx.beans.property.ReadOnlyProperty
+ * or javafx.beans.value.WritableValue
  *
  * @author Suburban Squirrel
  * @version 2.16.7.14

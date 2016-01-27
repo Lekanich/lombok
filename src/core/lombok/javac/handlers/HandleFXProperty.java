@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import javafx.beans.property.ReadOnlyProperty;
 import javafx.beans.value.WritableValue;
-import javafx.css.StyleableProperty;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
@@ -317,7 +316,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	public boolean isProperty(JavacNode node) {
 		Types typeUtil = Types.instance(node.getContext());
 		JCVariableDecl variableDecl = (JCVariableDecl) node.get();
-		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, ReadOnlyProperty.class.getName()) || isInheritedFromClass(typeUtil, variableDecl.vartype.type, StyleableProperty.class.getName());
+		return isInheritedFromClass(typeUtil, variableDecl.vartype.type, ReadOnlyProperty.class.getName()) || isInheritedFromClass(typeUtil, variableDecl.vartype.type, WritableValue.class.getName());
 	}
 
 	public boolean isInheritedFromClass(Types typesUtil, Type type, String clazz) {
