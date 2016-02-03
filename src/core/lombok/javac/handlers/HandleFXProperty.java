@@ -320,15 +320,8 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public boolean isInheritedFromClass(Types typesUtil, Type type, String clazz) {
-		if (implementsInterface(typesUtil, type, clazz)) return true;
-
-		Type superType = typesUtil.supertype(type);
-		return superType.tsym != null && (superType.tsym.flatName().toString().equals(clazz) || implementsInterface(typesUtil, type, clazz) || isInheritedFromClass(typesUtil, superType, clazz));
-	}
-
-	public boolean implementsInterface(Types typesUtil, Type type, String clazz) {
-		for (Type interfaceType : typesUtil.interfaces(type)) {
-			if (interfaceType.tsym.flatName().toString().equals(clazz) || implementsInterface(typesUtil, interfaceType, clazz)) return true;
+		for (Type ancestor : typesUtil.closure(type)) {
+			if (ancestor.tsym.flatName().toString().equals(clazz)) return true;
 		}
 		return false;
 	}
