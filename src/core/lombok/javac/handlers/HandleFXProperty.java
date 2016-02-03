@@ -320,6 +320,7 @@ public class HandleFXProperty extends JavacAnnotationHandler<FXProperty> {
 	}
 
 	public boolean isInheritedFromClass(Types typesUtil, Type type, String clazz) {
+		if (!(type instanceof ClassType)) return false;
 		for (Type ancestor : typesUtil.closure(type)) {
 			if (ancestor.tsym.flatName().toString().equals(clazz)) return true;
 		}
