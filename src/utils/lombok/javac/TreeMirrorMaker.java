@@ -21,6 +21,7 @@
  */
 package lombok.javac;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.tree.TreeCopier;
+import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
 import lombok.javac.JavacTreeMaker.TypeTag;
@@ -100,8 +102,6 @@ public class TreeMirrorMaker extends TreeCopier<Void> {
 		copy.sym = original.sym;
 		if (copy.sym != null) copy.type = original.type;
 		if (copy.type != null) {
-			copy.vartype.type = original.vartype.type;							// fix NPE
-
 			boolean wipeSymAndType = copy.type.isErroneous();
 			if (!wipeSymAndType) {
 				TypeTag typeTag = TypeTag.typeTag(copy.type);
@@ -111,7 +111,8 @@ public class TreeMirrorMaker extends TreeCopier<Void> {
 			if (wipeSymAndType) {
 				copy.sym = null;
 				copy.type = null;
-				copy.vartype.type = null;
+			} else {
+				cloneTypes(copy, original);
 			}
 		}
 
@@ -122,5 +123,26 @@ public class TreeMirrorMaker extends TreeCopier<Void> {
 	// This and visitVariable is rather hacky but we're working around evident bugs or at least inconsistencies in javac.
 	@Override public JCTree visitLabeledStatement(LabeledStatementTree node, Void p) {
 		return node.getStatement().accept(this, p);
+	}
+
+	public static void cloneTypes(JCTree.JCVariableDecl copy, JCTree.JCVariableDecl origin) {
+		final ArrayList<JCTree> varTypes = new ArrayList<JCTree>();
+
+		// collect origin types
+		new TreeScanner() {
+			public void scan(JCTree tree) {
+				varTypes.add(tree);
+				super.scan(tree);
+			}
+		}.scan(origin.vartype);
+
+		// copy origin types to "copy"
+		new TreeScanner() {
+			int i = 0;
+			public void scan(JCTree tree) {
+				tree.type = varTypes.get(i++).type;
+				super.scan(tree);
+			}
+		}.scan(copy.vartype);
 	}
 }
