@@ -1,0 +1,27 @@
+package lombok.experimental;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import lombok.AccessLevel;
+
+
+/**
+ * Adds methods and access level(optional).
+ * Can be specified only on fields which types inherited from or implement javafx.beans.property.ReadOnlyProperty
+ * or javafx.beans.value.WritableValue
+ *
+ * @author Suburban Squirrel
+ * @version 2.16.7.14
+ * @since 2.16.7.14
+ */
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.SOURCE)
+public @interface FXProperty {
+
+	/**
+	 * If you want your method to be non-public, you can specify an alternate access level here.
+	 */
+	AccessLevel value() default AccessLevel.PUBLIC;
+}
